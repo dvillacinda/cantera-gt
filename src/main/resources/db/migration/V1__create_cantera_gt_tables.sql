@@ -1,5 +1,20 @@
+-- UUID v7 (time-ordered). PostgreSQL 17 has no native uuidv7(); it arrives in PG 18.
+-- Named uuid_generate_v7 to avoid clashing with the future built-in. After upgrading to
+-- PG 18 you can switch the column defaults to uuidv7() and drop this function.
+CREATE OR REPLACE FUNCTION uuid_generate_v7() RETURNS uuid AS $$
+  SELECT encode(
+    set_bit(
+      set_bit(
+        overlay(uuid_send(gen_random_uuid())
+                placing substring(int8send(floor(extract(epoch FROM clock_timestamp()) * 1000)::bigint) FROM 3)
+                FROM 1 FOR 6),
+        52, 1),
+      53, 1),
+    'hex')::uuid;
+$$ LANGUAGE sql VOLATILE;
+
 CREATE TABLE "users" (
-  "user_id" UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  "user_id" UUID DEFAULT uuid_generate_v7() PRIMARY KEY,
   "keycloak_id" varchar(36) UNIQUE NOT NULL,
   "username" varchar(100) UNIQUE NOT NULL,
   "email" varchar(254) UNIQUE NOT NULL,
@@ -8,28 +23,33 @@ CREATE TABLE "users" (
   "updated_at" TIMESTAMP NOT NULL
 );
 
-CREATE TABLE "user_roles" (
-  "user_id" uuid NOT NULL,
-  "role_id" uuid NOT NULL,
-  "assigned_at" TIMESTAMP NOT NULL,
-  PRIMARY KEY ("user_id", "role_id")
+CREATE TABLE "positions" (
+  "position_id" UUID DEFAULT uuid_generate_v7() PRIMARY KEY,
+  "code" varchar(30) UNIQUE NOT NULL,
+  "name" varchar(100) NOT NULL,
+  "line" varchar(20) NOT NULL
 );
 
 CREATE TABLE "players" (
-  "player_id" UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  "player_id" UUID DEFAULT uuid_generate_v7() PRIMARY KEY,
   "user_id" uuid UNIQUE NOT NULL,
   "first_name" varchar(100) NOT NULL,
   "last_name" varchar(100) NOT NULL,
   "birth_date" date NOT NULL,
   "sex" varchar(20) NOT NULL,
-  "principal_position" varchar(30) NOT NULL,
-  "secondary_positions" varchar(255),
+  "principal_position_id" uuid NOT NULL,
   "created_at" TIMESTAMP NOT NULL,
   "updated_at" TIMESTAMP NOT NULL
 );
 
+CREATE TABLE "player_secondary_positions" (
+  "player_id" uuid NOT NULL,
+  "position_id" uuid NOT NULL,
+  PRIMARY KEY ("player_id", "position_id")
+);
+
 CREATE TABLE "coaches" (
-  "coach_id" UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  "coach_id" UUID DEFAULT uuid_generate_v7() PRIMARY KEY,
   "user_id" uuid UNIQUE NOT NULL,
   "first_name" varchar(100) NOT NULL,
   "last_name" varchar(100) NOT NULL,
@@ -38,14 +58,14 @@ CREATE TABLE "coaches" (
 );
 
 CREATE TABLE "roles" (
-  "role_id" UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  "role_id" UUID DEFAULT uuid_generate_v7() PRIMARY KEY,
   "code" varchar(50) UNIQUE NOT NULL,
   "name" varchar(100) NOT NULL,
   "description" varchar(255)
 );
 
 CREATE TABLE "permissions" (
-  "permission_id" UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  "permission_id" UUID DEFAULT uuid_generate_v7() PRIMARY KEY,
   "code" varchar(80) UNIQUE NOT NULL,
   "name" varchar(120) NOT NULL,
   "description" varchar(255)
@@ -58,7 +78,7 @@ CREATE TABLE "role_permissions" (
 );
 
 CREATE TABLE "academies" (
-  "academy_id" UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  "academy_id" UUID DEFAULT uuid_generate_v7() PRIMARY KEY,
   "name" varchar(150) NOT NULL,
   "status" varchar(20) NOT NULL,
   "created_at" TIMESTAMP NOT NULL,
@@ -66,7 +86,7 @@ CREATE TABLE "academies" (
 );
 
 CREATE TABLE "academy_locations" (
-  "location_id" UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  "location_id" UUID DEFAULT uuid_generate_v7() PRIMARY KEY,
   "academy_id" uuid NOT NULL,
   "name" varchar(100) NOT NULL,
   "address" varchar(255),
@@ -76,7 +96,7 @@ CREATE TABLE "academy_locations" (
 );
 
 CREATE TABLE "categories" (
-  "category_id" UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  "category_id" UUID DEFAULT uuid_generate_v7() PRIMARY KEY,
   "name" varchar(100) UNIQUE NOT NULL,
   "age_limit" int,
   "status" varchar(20) NOT NULL,
@@ -85,7 +105,7 @@ CREATE TABLE "categories" (
 );
 
 CREATE TABLE "seasons" (
-  "season_id" UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  "season_id" UUID DEFAULT uuid_generate_v7() PRIMARY KEY,
   "name" varchar(50) UNIQUE NOT NULL,
   "start_date" date NOT NULL,
   "end_date" date NOT NULL,
@@ -95,7 +115,7 @@ CREATE TABLE "seasons" (
 );
 
 CREATE TABLE "academy_categories" (
-  "academy_category_id" UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  "academy_category_id" UUID DEFAULT uuid_generate_v7() PRIMARY KEY,
   "academy_id" uuid NOT NULL,
   "category_id" uuid NOT NULL,
   "season_id" uuid NOT NULL,
@@ -105,7 +125,7 @@ CREATE TABLE "academy_categories" (
 );
 
 CREATE TABLE "player_assignments" (
-  "player_assignment_id" UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  "player_assignment_id" UUID DEFAULT uuid_generate_v7() PRIMARY KEY,
   "player_id" uuid NOT NULL,
   "academy_category_id" uuid NOT NULL,
   "start_date" date NOT NULL,
@@ -116,7 +136,7 @@ CREATE TABLE "player_assignments" (
 );
 
 CREATE TABLE "coach_assignments" (
-  "coach_assignment_id" UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  "coach_assignment_id" UUID DEFAULT uuid_generate_v7() PRIMARY KEY,
   "coach_id" uuid NOT NULL,
   "academy_category_id" uuid NOT NULL,
   "role_id" uuid NOT NULL,
@@ -128,7 +148,7 @@ CREATE TABLE "coach_assignments" (
 );
 
 CREATE TABLE "training_sessions" (
-  "session_id" UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  "session_id" UUID DEFAULT uuid_generate_v7() PRIMARY KEY,
   "academy_category_id" uuid NOT NULL,
   "location_id" uuid,
   "created_by_coach_id" uuid NOT NULL,
@@ -143,7 +163,7 @@ CREATE TABLE "training_sessions" (
 );
 
 CREATE TABLE "session_players" (
-  "session_player_id" UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  "session_player_id" UUID DEFAULT uuid_generate_v7() PRIMARY KEY,
   "session_id" uuid NOT NULL,
   "player_id" uuid NOT NULL,
   "attendance_status" varchar(20) NOT NULL,
@@ -152,7 +172,7 @@ CREATE TABLE "session_players" (
 );
 
 CREATE TABLE "session_staff" (
-  "session_staff_id" UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  "session_staff_id" UUID DEFAULT uuid_generate_v7() PRIMARY KEY,
   "session_id" uuid NOT NULL,
   "coach_id" uuid NOT NULL,
   "participation_type" varchar(30) NOT NULL,
@@ -160,7 +180,7 @@ CREATE TABLE "session_staff" (
 );
 
 CREATE TABLE "evaluation_templates" (
-  "template_id" UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  "template_id" UUID DEFAULT uuid_generate_v7() PRIMARY KEY,
   "name" varchar(150) NOT NULL,
   "category_id" uuid,
   "position_code" varchar(30),
@@ -172,7 +192,7 @@ CREATE TABLE "evaluation_templates" (
 );
 
 CREATE TABLE "evaluation_criteria" (
-  "criterion_id" UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  "criterion_id" UUID DEFAULT uuid_generate_v7() PRIMARY KEY,
   "template_id" uuid NOT NULL,
   "dimension_code" varchar(30) NOT NULL,
   "code" varchar(60) NOT NULL,
@@ -187,7 +207,7 @@ CREATE TABLE "evaluation_criteria" (
 );
 
 CREATE TABLE "evaluations" (
-  "evaluation_id" UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  "evaluation_id" UUID DEFAULT uuid_generate_v7() PRIMARY KEY,
   "academy_category_id" uuid NOT NULL,
   "session_id" uuid,
   "player_id" uuid NOT NULL,
@@ -208,7 +228,7 @@ CREATE TABLE "evaluations" (
 );
 
 CREATE TABLE "evaluation_results" (
-  "evaluation_result_id" UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  "evaluation_result_id" UUID DEFAULT uuid_generate_v7() PRIMARY KEY,
   "evaluation_id" uuid NOT NULL,
   "criterion_id" uuid NOT NULL,
   "score" decimal(5,2) NOT NULL,
@@ -218,7 +238,7 @@ CREATE TABLE "evaluation_results" (
 );
 
 CREATE TABLE "player_statistics" (
-  "player_statistics_id" UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  "player_statistics_id" UUID DEFAULT uuid_generate_v7() PRIMARY KEY,
   "academy_category_id" uuid NOT NULL,
   "player_id" uuid NOT NULL,
   "period_start" date NOT NULL,
@@ -234,7 +254,7 @@ CREATE TABLE "player_statistics" (
 );
 
 CREATE TABLE "audit_logs" (
-  "audit_log_id" UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  "audit_log_id" UUID DEFAULT uuid_generate_v7() PRIMARY KEY,
   "user_id" uuid,
   "academy_id" uuid,
   "academy_category_id" uuid,
@@ -244,6 +264,10 @@ CREATE TABLE "audit_logs" (
   "created_at" TIMESTAMP NOT NULL,
   "metadata" json
 );
+
+CREATE INDEX ON "players" ("principal_position_id");
+
+CREATE INDEX ON "player_secondary_positions" ("position_id");
 
 CREATE UNIQUE INDEX ON "academy_locations" ("academy_id", "name");
 
@@ -321,15 +345,23 @@ COMMENT ON COLUMN "users"."username" IS 'preferred_username from Keycloak';
 
 COMMENT ON COLUMN "users"."status" IS 'ACTIVE, INACTIVE, LOCKED, PENDING';
 
-COMMENT ON TABLE "user_roles" IS 'Global roles assigned from Keycloak synchronization.';
+COMMENT ON TABLE "roles" IS 'Contextual roles only (used in coach_assignments.role_id). Global/administrative roles live exclusively in Keycloak; there is no user_roles table.';
 
 COMMENT ON COLUMN "players"."user_id" IS 'Every player must have an app account';
 
 COMMENT ON COLUMN "players"."sex" IS 'Controlled value; avoid storing derived age';
 
-COMMENT ON COLUMN "players"."secondary_positions" IS 'MVP can remain simple; normalize later if multi-position querying becomes important';
+COMMENT ON COLUMN "players"."principal_position_id" IS 'Main position of the player; references positions.';
 
-COMMENT ON COLUMN "roles"."code" IS 'PLAYER, COACH, ACADEMY_ADMIN, SYSTEM_ADMIN, ASSISTANT, etc.';
+COMMENT ON TABLE "player_secondary_positions" IS 'Secondary positions of a player (0..N). A secondary position should differ from players.principal_position_id.';
+
+COMMENT ON TABLE "positions" IS 'Catalog of football positions.';
+
+COMMENT ON COLUMN "positions"."code" IS 'Stable position code, e.g. GK, CB, LB, RB, CDM, CM, CAM, LW, RW, ST';
+
+COMMENT ON COLUMN "positions"."line" IS 'GOALKEEPER, DEFENSE, MIDFIELD, FORWARD';
+
+COMMENT ON COLUMN "roles"."code" IS 'Contextual coach roles, e.g. HEAD_COACH, ASSISTANT, FITNESS_COACH. Not global roles (those come from Keycloak).';
 
 COMMENT ON COLUMN "academies"."status" IS 'ACTIVE, INACTIVE';
 
@@ -377,9 +409,13 @@ ALTER TABLE "players" ADD FOREIGN KEY ("user_id") REFERENCES "users" ("user_id")
 
 ALTER TABLE "coaches" ADD FOREIGN KEY ("user_id") REFERENCES "users" ("user_id") DEFERRABLE INITIALLY IMMEDIATE;
 
-ALTER TABLE "user_roles" ADD FOREIGN KEY ("user_id") REFERENCES "users" ("user_id") DEFERRABLE INITIALLY IMMEDIATE;
+ALTER TABLE "players" ADD FOREIGN KEY ("principal_position_id") REFERENCES "positions" ("position_id") DEFERRABLE INITIALLY IMMEDIATE;
 
-ALTER TABLE "user_roles" ADD FOREIGN KEY ("role_id") REFERENCES "roles" ("role_id") DEFERRABLE INITIALLY IMMEDIATE;
+ALTER TABLE "player_secondary_positions" ADD FOREIGN KEY ("player_id") REFERENCES "players" ("player_id") DEFERRABLE INITIALLY IMMEDIATE;
+
+ALTER TABLE "player_secondary_positions" ADD FOREIGN KEY ("position_id") REFERENCES "positions" ("position_id") DEFERRABLE INITIALLY IMMEDIATE;
+
+ALTER TABLE "evaluation_templates" ADD FOREIGN KEY ("position_code") REFERENCES "positions" ("code") DEFERRABLE INITIALLY IMMEDIATE;
 
 ALTER TABLE "role_permissions" ADD FOREIGN KEY ("role_id") REFERENCES "roles" ("role_id") DEFERRABLE INITIALLY IMMEDIATE;
 
