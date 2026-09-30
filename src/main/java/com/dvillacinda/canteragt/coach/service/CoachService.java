@@ -26,9 +26,19 @@ public class CoachService {
     @Transactional 
     public CoachResponse createCoach(CoachCreateRequest coach) {
         var user = userService.createUserEntity(coach.userCreateRequest());
-        CoachEntity coachEntity = coachMapper.toEntity(coach, user);
-        CoachEntity savedCoach = coachRepository.save(coachEntity);
-        return coachMapper.toResponse(savedCoach);
+        try {
+            userService.assignKeycloakRole(user.getKeycloakId(), "COACH");
+            CoachEntity coachEntity = coachMapper.toEntity(coach, user);
+            CoachEntity savedCoach = coachRepository.saveAndFlush(coachEntity);
+            return coachMapper.toResponse(savedCoach);
+        } catch (RuntimeException failure) {
+            try {
+                userService.deleteKeycloakUser(user.getKeycloakId());
+            } catch (RuntimeException compensationFailure) {
+                failure.addSuppressed(compensationFailure);
+            }
+            throw failure;
+        }
     }
 
     @Transactional(readOnly = true) 

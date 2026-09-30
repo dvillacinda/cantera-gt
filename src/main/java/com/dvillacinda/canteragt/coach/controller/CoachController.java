@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 import com.dvillacinda.canteragt.coach.dto.CoachCreateRequest;
 import com.dvillacinda.canteragt.coach.dto.CoachResponse;
@@ -32,6 +33,7 @@ public class CoachController {
     private final CoachService coachService;
 
     @PostMapping("/create-coach")
+    @PreAuthorize("hasAnyRole('ACADEMY_ADMIN', 'SYSTEM_ADMIN')")
     public ResponseEntity<ApiResponse<CoachResponse>> createCoach(@Valid @RequestBody CoachCreateRequest coach) {
         log.info("Creating coach");
         CoachResponse response = coachService.createCoach(coach);

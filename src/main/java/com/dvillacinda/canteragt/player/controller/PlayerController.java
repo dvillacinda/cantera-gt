@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 import com.dvillacinda.canteragt.player.dto.PlayerCreateRequest;
 import com.dvillacinda.canteragt.player.dto.PlayerResponse;
@@ -31,6 +32,7 @@ public class PlayerController {
     private final PlayerService playerService;
 
     @PostMapping("/create-player")
+    @PreAuthorize("hasAnyRole('ACADEMY_ADMIN', 'COACH', 'SYSTEM_ADMIN')")
     public ResponseEntity<ApiResponse<PlayerResponse>> createPlayer(@Valid @RequestBody PlayerCreateRequest player) {
         log.info("Creating player");
         PlayerResponse response = playerService.createPlayer(player);

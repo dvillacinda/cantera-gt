@@ -26,9 +26,19 @@ public class PlayerService {
     @Transactional
     public PlayerResponse createPlayer(PlayerCreateRequest player) {
         var user = userService.createUserEntity(player.userCreateRequest());
-        PlayerEntity playerEntity = playerMapper.toEntity(player, user);
-        PlayerEntity savedPlayer = playerRepository.save(playerEntity);
-        return playerMapper.toResponse(savedPlayer);
+        try {
+            userService.assignKeycloakRole(user.getKeycloakId(), "PLAYER");
+            PlayerEntity playerEntity = playerMapper.toEntity(player, user);
+            PlayerEntity savedPlayer = playerRepository.saveAndFlush(playerEntity);
+            return playerMapper.toResponse(savedPlayer);
+        } catch (RuntimeException failure) {
+            try {
+                userService.deleteKeycloakUser(user.getKeycloakId());
+            } catch (RuntimeException compensationFailure) {
+                failure.addSuppressed(compensationFailure);
+            }
+            throw failure;
+        }
 
     }
 
