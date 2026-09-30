@@ -28,7 +28,7 @@ public record AuthenticatedUser(
         return authorities.stream()
                 
                 .map(authority -> authority != null ? authority.getAuthority() : null)
-                .filter(authority -> authority.startsWith(ROLE_PREFIX))
+                .filter(authority -> authority != null && authority.startsWith(ROLE_PREFIX))
                 .map(authority -> authority.substring(ROLE_PREFIX.length()))
                 .toList();
     }
