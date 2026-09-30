@@ -1,0 +1,49 @@
+spring:
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URL}
+  application:
+    name: canteragt
+  datasource:
+    url: jdbc:postgresql://${BACKEND_URL}/${POSTGRES_DB}
+    username: ${POSTGRES_USER}
+    password: ${POSTGRES_PASSWORD}
+  
+  flyway:
+    enabled: true
+    execute-in-transaction: true
+    baseline-on-migrate: true
+    validate-on-migrate: true
+    locations: classpath:db/migration
+    validate-migration-naming: true
+  
+  jpa:
+    hibernate:
+      ddl-auto: validate  
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        "[format_sql]": true
+    show-sql: false
+
+app:
+  security:
+    oauth2:
+      client-id: ${KEYCLOAK_CLIENT_ID}
+    cors:
+      # Comma-separated list. Override it with CORS_ALLOWED_ORIGINS per environment.
+      allowed-origins: ${CORS_ALLOWED_ORIGINS}
+
+#documentation 
+springdoc:
+  swagger-ui:
+    enabled: false
+  api-docs:
+    enabled: false
+
+#logs 
+logging:
+  level:
+    root: INFO
