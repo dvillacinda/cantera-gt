@@ -1,0 +1,76 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: canteragt-postgres
+
+    env_file:
+      - .env
+
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+
+    ports:
+      - "5432:5432"
+
+    volumes:
+      - canteragt_postgres_data:/var/lib/postgresql/data
+
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U cantera_gt_admin -d cantera_gt"
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  keycloak-postgres:
+    image: postgres:17-alpine
+    container_name: keycloak-postgres
+
+    environment:
+      POSTGRES_DB: ${POSTGRES_KEYCLOAK_DB}
+      POSTGRES_USER: ${POSTGRES_KEYCLOAK_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_KEYCLOAK_PASSWORD}
+
+    volumes:
+      - keycloak_postgres_data:/var/lib/postgresql/data
+
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_KEYCLOAK_USER} -d ${POSTGRES_KEYCLOAK_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:24.0.1
+    container_name: keycloak
+    command: ["start-dev", "--import-realm"]
+
+    environment:
+      KC_DB: postgres
+      KC_DB_URL_HOST: keycloak-postgres
+      KC_DB_URL_DATABASE: ${POSTGRES_KEYCLOAK_DB}
+      KC_DB_USERNAME: ${POSTGRES_KEYCLOAK_USER}
+      KC_DB_PASSWORD: ${POSTGRES_KEYCLOAK_PASSWORD}
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+
+    ports:
+      - "8181:8080"
+
+    volumes:
+      - ./docker/keycloak/realms/:/opt/keycloak/data/import/
+
+    depends_on:
+      keycloak-postgres:
+        condition: service_healthy
+
+volumes:
+  canteragt_postgres_data:
+  keycloak_postgres_data:
