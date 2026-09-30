@@ -24,7 +24,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 @RestController
-@RequestMapping("/api/coaches")
+@RequestMapping("/api/v1/coaches")
 @RequiredArgsConstructor
 @Slf4j
 public class CoachController {

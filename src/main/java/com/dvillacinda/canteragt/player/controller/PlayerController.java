@@ -24,7 +24,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 @RestController
-@RequestMapping("/api/player")
+@RequestMapping("/api/v1/players")
 @RequiredArgsConstructor
 @Slf4j
 public class PlayerController {
