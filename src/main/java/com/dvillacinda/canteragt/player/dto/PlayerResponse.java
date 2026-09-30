@@ -14,7 +14,7 @@ public record PlayerResponse(
         String lastName,
         LocalDate birthDate,
         Sex sex,
-        String principalPosition,
+        UUID principalPositionId,
         String secondaryPosition,
         LocalDateTime createdAt,
         LocalDateTime updatedAt) {

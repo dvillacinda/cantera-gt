@@ -67,7 +67,7 @@ public class PlayerService {
         if (request.firstName() != null) existing.setFirstName(request.firstName());
         if (request.lastName() != null) existing.setLastName(request.lastName());
         if (request.sex() != null) existing.setSex(request.sex());
-        if (request.principalPosition() != null) existing.setPrincipalPosition(request.principalPosition());
+        if (request.principalPositionId() != null) existing.setPrincipalPositionId(request.principalPositionId());
         if (request.secondaryPosition() != null) {
             existing.setSecondaryPosition(request.secondaryPosition().isBlank() ? null : request.secondaryPosition());
         }

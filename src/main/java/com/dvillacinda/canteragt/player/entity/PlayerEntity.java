@@ -19,6 +19,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
+import jakarta.persistence.Transient;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -56,10 +57,10 @@ public class PlayerEntity extends BaseEntity {
     @Column(name = "sex", nullable = false)
     private Sex sex;
 
-    @Column(name = "principal_position", nullable = false)
-    private String principalPosition;
+    @Column(name = "principal_position_id", nullable = false)
+    private UUID principalPositionId;
 
-    @Column(name = "secondary_positions")
+    @Transient
     private String secondaryPosition;
 
 }

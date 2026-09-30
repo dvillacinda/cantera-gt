@@ -1,6 +1,7 @@
 package com.dvillacinda.canteragt.player.dto;
 
 import java.time.LocalDate;
+import java.util.UUID;
 
 import com.dvillacinda.canteragt.player.enums.Sex;
 import com.dvillacinda.canteragt.user.dto.UserCreateRequest;
@@ -17,7 +18,7 @@ public record PlayerCreateRequest(
         @NotBlank @Size(max = 100) String lastName,
         @NotNull @Past LocalDate birthDate,
         @NotNull Sex sex,
-        @NotBlank @Size(max = 30) String principalPosition,
+        @NotNull UUID principalPositionId,
         @Size(max = 255) String secondaryPosition
 
 ) {

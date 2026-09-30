@@ -1,5 +1,7 @@
 package com.dvillacinda.canteragt.player.dto;
 
+import java.util.UUID;
+
 import com.dvillacinda.canteragt.player.enums.Sex;
 
 import jakarta.validation.constraints.Pattern;
@@ -13,6 +15,6 @@ public record PlayerUpdateRequest(
         @Pattern(regexp = "(?s).*\\S.*", message = "must not be blank") @Size(max = 100) String firstName,
         @Pattern(regexp = "(?s).*\\S.*", message = "must not be blank") @Size(max = 100) String lastName,
         Sex sex,
-        @Pattern(regexp = "(?s).*\\S.*", message = "must not be blank") @Size(max = 30) String principalPosition,
+        UUID principalPositionId,
         @Size(max = 255) String secondaryPosition) {
 }
