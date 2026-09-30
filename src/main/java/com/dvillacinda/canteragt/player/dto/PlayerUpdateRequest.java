@@ -15,6 +15,6 @@ public record PlayerUpdateRequest(
         @Pattern(regexp = "(?s).*\\S.*", message = "must not be blank") @Size(max = 100) String firstName,
         @Pattern(regexp = "(?s).*\\S.*", message = "must not be blank") @Size(max = 100) String lastName,
         Sex sex,
-        UUID principalPositionId,
-        @Size(max = 255) String secondaryPosition) {
+        PositionEntity principalPosition,
+        Set<PositionEntity> secondaryPositions) {
 }

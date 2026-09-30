@@ -19,7 +19,6 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
-import jakarta.persistence.Transient;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -51,10 +50,16 @@ public class PlayerEntity extends BaseEntity {
     @Column(name = "sex", nullable = false)
     private Sex sex;
 
-    @Column(name = "principal_position_id", nullable = false)
-    private UUID principalPositionId;
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "principal_position_id", referencedColumnName = "position_id", nullable = false)
+    private PositionEntity principalPosition;
 
-    @Transient
-    private String secondaryPosition;
+    @ManyToMany
+    @JoinTable(
+        name = "player_secondary_positions",
+        joinColumns = @JoinColumn(name = "player_id"),
+        inverseJoinColumns = @JoinColumn(name = "position_id")
+    )
+    private Set<PositionEntity> secondaryPositions = new HashSet<>();
 
 }

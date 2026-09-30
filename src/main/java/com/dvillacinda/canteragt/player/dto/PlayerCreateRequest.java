@@ -18,8 +18,8 @@ public record PlayerCreateRequest(
         @NotBlank @Size(max = 100) String lastName,
         @NotNull @Past LocalDate birthDate,
         @NotNull Sex sex,
-        @NotNull UUID principalPositionId,
-        @Size(max = 255) String secondaryPosition
+        @NotNull PositionEntity principalPosition,
+        Set<PositionEntity> secondaryPositions
 
 ) {
 

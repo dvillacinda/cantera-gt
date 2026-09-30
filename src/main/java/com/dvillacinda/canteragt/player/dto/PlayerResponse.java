@@ -14,8 +14,8 @@ public record PlayerResponse(
         String lastName,
         LocalDate birthDate,
         Sex sex,
-        UUID principalPositionId,
-        String secondaryPosition,
+        PositionEntity principalPosition,
+        Set<PositionEntity> secondaryPositions,
         LocalDateTime createdAt,
         LocalDateTime updatedAt) {
 

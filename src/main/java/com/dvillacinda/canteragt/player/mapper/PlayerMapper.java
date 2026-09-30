@@ -23,8 +23,8 @@ public class PlayerMapper {
                 player.getUser().getLastName(),
                 player.getBirthDate(),
                 player.getSex(),
-                player.getPrincipalPositionId(),
-                player.getSecondaryPosition(),
+                player.getPrincipalPosition(),
+                player.getSecondaryPositions(),
                 player.getCreatedAt(),
                 player.getUpdatedAt()
         );
@@ -35,8 +35,8 @@ public class PlayerMapper {
                 .user(user)
                 .birthDate(player.birthDate())
                 .sex(player.sex())
-                .principalPositionId(player.principalPositionId())
-                .secondaryPosition(player.secondaryPosition())
+                .principalPosition(player.principalPositionId())
+                .secondaryPositions(player.secondaryPositions())
                 .build();
     }
 
