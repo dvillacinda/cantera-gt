@@ -9,8 +9,6 @@ import jakarta.validation.constraints.Size;
 
 public record UserCreateRequest(
 
-        @NotBlank @Size(max = 36) String keycloakId,
-
         @NotBlank @Email @Size(max = 254) String email,
 
         @NotBlank @Size(max = 100) String username,

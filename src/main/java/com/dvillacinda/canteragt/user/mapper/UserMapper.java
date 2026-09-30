@@ -21,7 +21,6 @@ public class UserMapper {
 
     public UserEntity toEntity(UserCreateRequest user) {
         return UserEntity.builder()
-                .keycloakId(user.keycloakId())
                 .email(user.email())
                 .username(user.username())
                 .status(user.status())
