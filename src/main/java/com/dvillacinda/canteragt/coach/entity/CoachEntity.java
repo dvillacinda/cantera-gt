@@ -7,7 +7,6 @@ import com.dvillacinda.canteragt.user.entity.UserEntity;
 
 import org.hibernate.annotations.UuidGenerator;
 
-import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.Id;
