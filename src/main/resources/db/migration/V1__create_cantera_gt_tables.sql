@@ -64,19 +64,6 @@ CREATE TABLE "roles" (
   "description" varchar(255)
 );
 
-CREATE TABLE "permissions" (
-  "permission_id" UUID DEFAULT uuid_generate_v7() PRIMARY KEY,
-  "code" varchar(80) UNIQUE NOT NULL,
-  "name" varchar(120) NOT NULL,
-  "description" varchar(255)
-);
-
-CREATE TABLE "role_permissions" (
-  "role_id" uuid NOT NULL,
-  "permission_id" uuid NOT NULL,
-  PRIMARY KEY ("role_id", "permission_id")
-);
-
 CREATE TABLE "academies" (
   "academy_id" UUID DEFAULT uuid_generate_v7() PRIMARY KEY,
   "name" varchar(150) NOT NULL,
