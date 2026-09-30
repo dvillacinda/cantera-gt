@@ -7,6 +7,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
+@JsonConfig(namingStrategy = PropertyNamingStrategiesLOWER_CASE_WITH_UNDERSCORES)
 public record CoachCreateRequest(
     @NotNull @Valid UserCreateRequest userCreateRequest,
     @NotBlank @Size (max = 100) String firstName,

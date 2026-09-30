@@ -6,6 +6,8 @@ import jakarta.validation.constraints.Size;
 /**
  * PATCH semantics: null fields are left unchanged; provided fields must not be blank.
  */
+
+@JsonConfig(namingStrategy = PropertyNamingStrategiesLOWER_CASE_WITH_UNDERSCORES)
 public record CoachUpdateRequest(
     @Pattern(regexp = "(?s).*\\S.*", message = "must not be blank") @Size(max = 100) String firstName,
     @Pattern(regexp = "(?s).*\\S.*", message = "must not be blank") @Size(max = 100) String lastName
