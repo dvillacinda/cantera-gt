@@ -29,14 +29,9 @@ public class UserService {
     private final KeycloakUserService keycloakUserService;
 
     @Transactional
-    public UserResponse createUser(UserCreateRequest user) {
-        return userMapper.toResponse(createUserEntity(user));
-    }
-
-    @Transactional
-    public UserEntity createUserEntity(UserCreateRequest user) {
-        UserEntity entity = userMapper.toEntity(user);
-        entity.setKeycloakId(keycloakUserService.createUser(user));
+    public UserEntity createUserEntity(UserCreateRequest user, String firstName, String lastName) {
+        UserEntity entity = userMapper.toEntity(user, firstName, lastName);
+        entity.setKeycloakId(keycloakUserService.createUser(user, firstName, lastName));
         try {
             return userRepository.saveAndFlush(entity);
         } catch (RuntimeException failure) {
@@ -77,7 +72,40 @@ public class UserService {
         if (request.email() != null) existing.setEmail(request.email());
         if (request.username() != null) existing.setUsername(request.username());
         if (request.status() != null) existing.setStatus(request.status());
+        if (request.firstName() != null || request.lastName() != null) {
+            String newFirstName = request.firstName() != null ? request.firstName() : existing.getFirstName();
+            String newLastName = request.lastName() != null ? request.lastName() : existing.getLastName();
+            synchronizeNames(existing, newFirstName, newLastName);
+        }
         return userMapper.toResponse(userRepository.saveAndFlush(existing));
+    }
+
+    @Transactional
+    public void updateNames(UUID userId, String firstName, String lastName) {
+        UserEntity user = userRepository.findById(userId)
+                .orElseThrow(() -> new NotFoundException("User with id " + userId + " not found"));
+        String newFirstName = firstName != null ? firstName : user.getFirstName();
+        String newLastName = lastName != null ? lastName : user.getLastName();
+        synchronizeNames(user, newFirstName, newLastName);
+        userRepository.saveAndFlush(user);
+    }
+
+    private void synchronizeNames(UserEntity user, String firstName, String lastName) {
+        String previousFirstName = user.getFirstName();
+        String previousLastName = user.getLastName();
+        keycloakUserService.updateNames(user.getKeycloakId(), firstName, lastName);
+        user.setFirstName(firstName);
+        user.setLastName(lastName);
+        try {
+            userRepository.saveAndFlush(user);
+        } catch (RuntimeException failure) {
+            try {
+                keycloakUserService.updateNames(user.getKeycloakId(), previousFirstName, previousLastName);
+            } catch (RuntimeException compensationFailure) {
+                failure.addSuppressed(compensationFailure);
+            }
+            throw failure;
+        }
     }
 
     @Transactional(readOnly = true)

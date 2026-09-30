@@ -10,6 +10,8 @@ public record UserResponse(
         String keycloakId,
         String email,
         String username,
+        String firstName,
+        String lastName,
         Status status,
         LocalDateTime createdAt,
         LocalDateTime updatedAt) {

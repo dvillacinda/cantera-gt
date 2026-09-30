@@ -19,19 +19,13 @@ public class CoachMapper {
         return new CoachResponse(
                 coach.getCoachId(),
                 userMapper.toResponse(coach.getUser()),
-                coach.getFirstName(),
-                coach.getLastName());
-    }
-
-    public CoachEntity toEntity(CoachCreateRequest coach) {
-        return toEntity(coach, userMapper.toEntity(coach.userCreateRequest()));
+                coach.getUser().getFirstName(),
+                coach.getUser().getLastName());
     }
 
     public CoachEntity toEntity(CoachCreateRequest coach, UserEntity user) {
         return CoachEntity.builder()
                 .user(user)
-                .firstName(coach.firstName())
-                .lastName(coach.lastName())
                 .build();
     }
 }

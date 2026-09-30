@@ -12,5 +12,7 @@ import jakarta.validation.constraints.Size;
 public record UserUpdateRequest(
         @Email @Pattern(regexp = "(?s).*\\S.*", message = "must not be blank") @Size(max = 254) String email,
         @Pattern(regexp = "(?s).*\\S.*", message = "must not be blank") @Size(max = 100) String username,
+        @Pattern(regexp = "(?s).*\\S.*", message = "must not be blank") @Size(max = 100) String firstName,
+        @Pattern(regexp = "(?s).*\\S.*", message = "must not be blank") @Size(max = 100) String lastName,
         Status status) {
 }

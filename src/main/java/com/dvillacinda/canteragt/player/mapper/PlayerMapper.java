@@ -19,8 +19,8 @@ public class PlayerMapper {
         return new PlayerResponse(
                 player.getPlayerId(),
                 userMapper.toResponse(player.getUser()),
-                player.getFirstName(),
-                player.getLastName(),
+                player.getUser().getFirstName(),
+                player.getUser().getLastName(),
                 player.getBirthDate(),
                 player.getSex(),
                 player.getPrincipalPositionId(),
@@ -30,15 +30,9 @@ public class PlayerMapper {
         );
     }
 
-    public PlayerEntity toEntity(PlayerCreateRequest player){
-        return toEntity(player, userMapper.toEntity(player.userCreateRequest()));
-    }
-
     public PlayerEntity toEntity(PlayerCreateRequest player, UserEntity user){
         return PlayerEntity.builder()
                 .user(user)
-                .firstName(player.firstName())
-                .lastName(player.lastName())
                 .birthDate(player.birthDate())
                 .sex(player.sex())
                 .principalPositionId(player.principalPositionId())

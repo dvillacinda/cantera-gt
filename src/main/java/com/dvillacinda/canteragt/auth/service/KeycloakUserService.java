@@ -34,11 +34,13 @@ public class KeycloakUserService {
         this.clientSecret = clientSecret;
     }
 
-    public String createUser(UserCreateRequest request) {
+    public String createUser(UserCreateRequest request, String firstName, String lastName) {
         String token = accessToken();
         Map<String, Object> body = Map.of(
                 "username", request.username(),
                 "email", request.email(),
+                "firstName", firstName,
+                "lastName", lastName,
                 "enabled", true,
                 "emailVerified", false,
                 "requiredActions", List.of("UPDATE_PASSWORD"));
@@ -62,6 +64,18 @@ public class KeycloakUserService {
             throw new IllegalStateException("Keycloak returned an empty user identifier");
         }
         return keycloakId;
+    }
+
+    public void updateNames(String keycloakId, String firstName, String lastName) {
+        String token = accessToken();
+        Map<String, Object> body = Map.of("firstName", firstName, "lastName", lastName);
+        restClient.put()
+                .uri(adminRealmUrl() + "/users/{id}", keycloakId)
+                .headers(headers -> headers.setBearerAuth(token))
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(body)
+                .retrieve()
+                .toBodilessEntity();
     }
 
     public void deleteUser(String keycloakId) {

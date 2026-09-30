@@ -25,7 +25,7 @@ public class PlayerService {
 
     @Transactional
     public PlayerResponse createPlayer(PlayerCreateRequest player) {
-        var user = userService.createUserEntity(player.userCreateRequest());
+        var user = userService.createUserEntity(player.userCreateRequest(), player.firstName(), player.lastName());
         try {
             userService.assignKeycloakRole(user.getKeycloakId(), "PLAYER");
             PlayerEntity playerEntity = playerMapper.toEntity(player, user);
@@ -64,8 +64,9 @@ public class PlayerService {
     public PlayerResponse updatePlayer(UUID playerId, PlayerUpdateRequest request) {
         PlayerEntity existing = playerRepository.findById(playerId).orElseThrow(
                 () -> new NotFoundException("Player with id " + playerId + " not found"));
-        if (request.firstName() != null) existing.setFirstName(request.firstName());
-        if (request.lastName() != null) existing.setLastName(request.lastName());
+        if (request.firstName() != null || request.lastName() != null) {
+            userService.updateNames(existing.getUser().getUserId(), request.firstName(), request.lastName());
+        }
         if (request.sex() != null) existing.setSex(request.sex());
         if (request.principalPositionId() != null) existing.setPrincipalPositionId(request.principalPositionId());
         if (request.secondaryPosition() != null) {

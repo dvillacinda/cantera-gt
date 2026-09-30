@@ -25,7 +25,7 @@ public class CoachService {
 
     @Transactional 
     public CoachResponse createCoach(CoachCreateRequest coach) {
-        var user = userService.createUserEntity(coach.userCreateRequest());
+        var user = userService.createUserEntity(coach.userCreateRequest(), coach.firstName(), coach.lastName());
         try {
             userService.assignKeycloakRole(user.getKeycloakId(), "COACH");
             CoachEntity coachEntity = coachMapper.toEntity(coach, user);
@@ -65,8 +65,9 @@ public class CoachService {
         CoachEntity existing = coachRepository.findById(coachId).orElseThrow(
             () -> new NotFoundException("Coach with id " + coachId + " not found")
         );
-        if (request.firstName() != null) existing.setFirstName(request.firstName());
-        if (request.lastName() != null) existing.setLastName(request.lastName());
+        if (request.firstName() != null || request.lastName() != null) {
+            userService.updateNames(existing.getUser().getUserId(), request.firstName(), request.lastName());
+        }
         return coachMapper.toResponse(coachRepository.save(existing));
     }
 }

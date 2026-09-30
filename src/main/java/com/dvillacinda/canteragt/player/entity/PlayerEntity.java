@@ -44,12 +44,6 @@ public class PlayerEntity extends BaseEntity {
     @JoinColumn(name = "user_id", referencedColumnName = "user_id", nullable = false, unique = true)
     private UserEntity user;
 
-    @Column(name = "first_name", nullable = false)
-    private String firstName;
-
-    @Column(name = "last_name", nullable = false)
-    private String lastName;
-
     @Column(name = "birth_date", nullable = false)
     private LocalDate birthDate;
 

@@ -14,15 +14,19 @@ public class UserMapper {
                 user.getKeycloakId(),
                 user.getEmail(),
                 user.getUsername(),
+                user.getFirstName(),
+                user.getLastName(),
                 user.getStatus(),
                 user.getCreatedAt(),
                 user.getUpdatedAt());
     }
 
-    public UserEntity toEntity(UserCreateRequest user) {
+    public UserEntity toEntity(UserCreateRequest user, String firstName, String lastName) {
         return UserEntity.builder()
                 .email(user.email())
                 .username(user.username())
+                .firstName(firstName)
+                .lastName(lastName)
                 .status(user.status())
                 .build();
     }

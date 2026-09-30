@@ -45,6 +45,12 @@ public class UserEntity extends BaseEntity {
     @Column(name = "username", unique = true, nullable = false)
     private String username;
 
+    @Column(name = "first_name", nullable = false, length = 100)
+    private String firstName;
+
+    @Column(name = "last_name", nullable = false, length = 100)
+    private String lastName;
+
     @Enumerated(EnumType.STRING)
     @Column (name = "status", nullable = false)
     private Status status ;
