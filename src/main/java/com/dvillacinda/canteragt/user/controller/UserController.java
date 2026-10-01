@@ -54,5 +54,6 @@ public class UserController {
         UserResponse response = userService.updateUser(userId, user);
         return ResponseEntity.ok(new ApiResponse<>(true, HttpStatus.OK, "User updated successfully", response));
     }
+    
 
 }

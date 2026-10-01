@@ -14,6 +14,7 @@ import com.dvillacinda.canteragt.user.entity.UserEntity;
 import com.dvillacinda.canteragt.user.mapper.UserMapper;
 import com.dvillacinda.canteragt.user.repository.UserRepository;
 import com.dvillacinda.canteragt.auth.service.KeycloakUserService;
+import com.dvillacinda.canteragt.shared.enums.Status;
 import com.dvillacinda.canteragt.shared.exception.ConflictException;
 import com.dvillacinda.canteragt.shared.exception.NotFoundException;
 
@@ -68,40 +69,53 @@ public class UserService {
 
     @Transactional
     public UserResponse updateUser(UUID userId, UserUpdateRequest request) {
-        UserEntity existing = userRepository.findById(userId)
-                .orElseThrow(() -> new NotFoundException("User with id " + userId + " not found"));
-        if (request.email() != null) existing.setEmail(request.email());
-        if (request.username() != null) existing.setUsername(request.username());
-        if (request.status() != null) existing.setStatus(request.status());
-        if (request.firstName() != null || request.lastName() != null) {
-            String newFirstName = request.firstName() != null ? request.firstName() : existing.getFirstName();
-            String newLastName = request.lastName() != null ? request.lastName() : existing.getLastName();
-            synchronizeNames(existing, newFirstName, newLastName);
-        }
-        return userMapper.toResponse(userRepository.saveAndFlush(existing));
+        UserEntity existing = findById(userId);
+        synchronize(existing,
+                request.email() != null ? request.email() : existing.getEmail(),
+                request.firstName() != null ? request.firstName() : existing.getFirstName(),
+                request.lastName() != null ? request.lastName() : existing.getLastName(),
+                request.status() != null ? request.status() : existing.getStatus());
+        return userMapper.toResponse(existing);
     }
 
     @Transactional
     public void updateNames(UUID userId, String firstName, String lastName) {
-        UserEntity user = userRepository.findById(userId)
-                .orElseThrow(() -> new NotFoundException("User with id " + userId + " not found"));
-        String newFirstName = firstName != null ? firstName : user.getFirstName();
-        String newLastName = lastName != null ? lastName : user.getLastName();
-        synchronizeNames(user, newFirstName, newLastName);
-        userRepository.saveAndFlush(user);
+        UserEntity user = findById(userId);
+        synchronize(user, user.getEmail(),
+                firstName != null ? firstName : user.getFirstName(),
+                lastName != null ? lastName : user.getLastName(),
+                user.getStatus());
     }
 
-    private void synchronizeNames(UserEntity user, String firstName, String lastName) {
+    /** Disables the Keycloak account when the status does not allow logging in (INACTIVE, LOCKED). */
+    @Transactional
+    public void updateStatus(UUID userId, Status status) {
+        UserEntity user = findById(userId);
+        synchronize(user, user.getEmail(), user.getFirstName(), user.getLastName(), status);
+    }
+
+    private UserEntity findById(UUID userId) {
+        return userRepository.findById(userId)
+                .orElseThrow(() -> new NotFoundException("User with id " + userId + " not found"));
+    }
+
+    /** Applies the change in Keycloak first and reverts it there if the database write fails. */
+    private void synchronize(UserEntity user, String email, String firstName, String lastName, Status status) {
+        String previousEmail = user.getEmail();
         String previousFirstName = user.getFirstName();
         String previousLastName = user.getLastName();
-        keycloakUserService.updateNames(user.getKeycloakId(), firstName, lastName);
+        Status previousStatus = user.getStatus();
+        keycloakUserService.updateUser(user.getKeycloakId(), email, firstName, lastName, status.canLogIn());
+        user.setEmail(email);
         user.setFirstName(firstName);
         user.setLastName(lastName);
+        user.setStatus(status);
         try {
             userRepository.saveAndFlush(user);
         } catch (RuntimeException failure) {
             try {
-                keycloakUserService.updateNames(user.getKeycloakId(), previousFirstName, previousLastName);
+                keycloakUserService.updateUser(user.getKeycloakId(), previousEmail, previousFirstName,
+                        previousLastName, previousStatus.canLogIn());
             } catch (RuntimeException compensationFailure) {
                 failure.addSuppressed(compensationFailure);
             }
