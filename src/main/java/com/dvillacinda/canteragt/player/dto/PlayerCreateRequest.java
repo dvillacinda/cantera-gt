@@ -6,8 +6,8 @@ import java.util.UUID;
 
 import com.dvillacinda.canteragt.player.enums.Sex;
 import com.dvillacinda.canteragt.user.dto.UserCreateRequest;
-import com.fasterxml.jackson.databind.PropertyNamingStrategies;
-import com.fasterxml.jackson.databind.annotation.JsonNaming;
+import tools.jackson.databind.PropertyNamingStrategies;
+import tools.jackson.databind.annotation.JsonNaming;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;

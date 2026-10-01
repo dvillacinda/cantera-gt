@@ -16,6 +16,7 @@ import com.dvillacinda.canteragt.player.mapper.PlayerMapper;
 import com.dvillacinda.canteragt.player.repository.PlayerRepository;
 import com.dvillacinda.canteragt.position.entity.PositionEntity;
 import com.dvillacinda.canteragt.position.service.PositionService;
+import com.dvillacinda.canteragt.shared.enums.Status;
 import com.dvillacinda.canteragt.shared.exception.ConflictException;
 import com.dvillacinda.canteragt.shared.exception.NotFoundException;
 import com.dvillacinda.canteragt.user.service.UserService;
@@ -100,6 +101,13 @@ public class PlayerService {
         if (secondary.stream().anyMatch(position -> position.getPositionId().equals(principal.getPositionId()))) {
             throw new ConflictException("Principal position cannot also be a secondary position");
         }
+    }
+
+    public PlayerResponse updatePlayerStatusById(UUID playerId, Status status) {
+        PlayerEntity existing = playerRepository.findById(playerId).orElseThrow(
+                () -> new NotFoundException("Player with id " + playerId + " not found"));
+        userService.updateStatus(existing.getUser().getUserId(), status);
+        return playerMapper.toResponse(existing);
     }
 
 }

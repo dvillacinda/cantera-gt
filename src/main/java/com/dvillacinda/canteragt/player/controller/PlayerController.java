@@ -19,6 +19,7 @@ import com.dvillacinda.canteragt.player.dto.PlayerResponse;
 import com.dvillacinda.canteragt.player.dto.PlayerUpdateRequest;
 import com.dvillacinda.canteragt.player.service.PlayerService;
 import com.dvillacinda.canteragt.shared.dto.ApiResponse;
+import com.dvillacinda.canteragt.shared.enums.Status;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -58,11 +59,20 @@ public class PlayerController {
         return ResponseEntity.ok(new ApiResponse<>(true, HttpStatus.OK, "Player updated successfully", response));
     }
 
-    @PreAuthorize("hasAnyRole('ACADEMY_ADMIN', 'COACH', 'SYSTEM_ADMIN')")
+    @PreAuthorize("hasRole('ACADEMY_ADMIN')")
     @DeleteMapping("/delete-player-by-id/{playerId}")
     public ResponseEntity<ApiResponse<Void>> deletePlayerById(@PathVariable UUID playerId) {
         log.info("Deleting player with id {}", playerId);
         playerService.deletePlayerById(playerId);
         return ResponseEntity.ok(new ApiResponse<>(true, HttpStatus.OK, "Player deleted successfully", null));
+    }
+
+    @PreAuthorize("hasAnyRole('ACADEMY_ADMIN', 'COACH')")
+    @PatchMapping("/update-player-status-by-id/{playerId}/{status}")
+    public ResponseEntity<ApiResponse<PlayerResponse>> updatePlayerStatusById(@PathVariable UUID playerId,
+            @PathVariable Status status) {
+        log.info("Updating player status with id {}", playerId);
+        PlayerResponse response = playerService.updatePlayerStatusById(playerId, status);
+        return ResponseEntity.ok(new ApiResponse<>(true, HttpStatus.OK, "Player status updated successfully", response));
     }
 }

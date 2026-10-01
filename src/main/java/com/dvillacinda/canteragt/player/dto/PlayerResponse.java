@@ -8,8 +8,8 @@ import java.util.UUID;
 import com.dvillacinda.canteragt.player.enums.Sex;
 import com.dvillacinda.canteragt.position.dto.PositionResponse;
 import com.dvillacinda.canteragt.user.dto.UserResponse;
-import com.fasterxml.jackson.databind.PropertyNamingStrategies;
-import com.fasterxml.jackson.databind.annotation.JsonNaming;
+import tools.jackson.databind.PropertyNamingStrategies;
+import tools.jackson.databind.annotation.JsonNaming;
 
 @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
 public record PlayerResponse(
