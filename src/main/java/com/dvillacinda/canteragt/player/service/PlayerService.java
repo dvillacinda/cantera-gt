@@ -1,5 +1,6 @@
 package com.dvillacinda.canteragt.player.service;
 
+import java.util.HashSet;
 import java.util.UUID;
 
 import org.springframework.stereotype.Service;
@@ -55,8 +56,7 @@ public class PlayerService {
     @Transactional(readOnly = true)
     public PlayerResponse getPlayerById(UUID playerId) {
         PlayerEntity player = playerRepository.findById(playerId).orElseThrow(
-            () -> new NotFoundException("Player with id "+playerId+ " not found")
-        );
+                () -> new NotFoundException("Player with id " + playerId + " not found"));
         return playerMapper.toResponse(player);
     }
 
@@ -67,11 +67,12 @@ public class PlayerService {
         if (request.firstName() != null || request.lastName() != null) {
             userService.updateNames(existing.getUser().getUserId(), request.firstName(), request.lastName());
         }
-        if (request.sex() != null) existing.setSex(request.sex());
-        if (request.principalPositionId() != null) existing.setPrincipalPositionId(request.principalPositionId());
-        if (request.secondaryPosition() != null) {
-            existing.setSecondaryPosition(request.secondaryPosition().isBlank() ? null : request.secondaryPosition());
-        }
+        if (request.sex() != null)
+            existing.setSex(request.sex());
+        if (request.principalPosition() != null)
+            existing.setPrincipalPosition(request.principalPosition());
+        
+        //TODO: get secondary postions from position repository
         return playerMapper.toResponse(playerRepository.save(existing));
     }
 

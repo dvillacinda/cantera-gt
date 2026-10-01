@@ -3,8 +3,10 @@ package com.dvillacinda.canteragt.coach.dto;
 import java.util.UUID;
 
 import com.dvillacinda.canteragt.user.dto.UserResponse;
+import com.fasterxml.jackson.databind.PropertyNamingStrategies;
+import com.fasterxml.jackson.databind.annotation.JsonNaming;
 
-@JsonConfig(namingStrategy = PropertyNamingStrategiesLOWER_CASE_WITH_UNDERSCORES)
+@JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
 public record CoachResponse(
     UUID coachId,
     UserResponse userResponse,

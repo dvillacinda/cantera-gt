@@ -1,10 +1,13 @@
 package com.dvillacinda.canteragt.player.entity;
 
 import java.time.LocalDate;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.UUID;
 
 
 import com.dvillacinda.canteragt.player.enums.Sex;
+import com.dvillacinda.canteragt.position.entity.PositionEntity;
 import com.dvillacinda.canteragt.shared.entity.BaseEntity;
 import com.dvillacinda.canteragt.user.entity.UserEntity;
 
@@ -14,9 +17,13 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
+import jakarta.persistence.JoinTable;
+import jakarta.persistence.ManyToMany;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
@@ -54,6 +61,7 @@ public class PlayerEntity extends BaseEntity {
     @JoinColumn(name = "principal_position_id", referencedColumnName = "position_id", nullable = false)
     private PositionEntity principalPosition;
 
+    @Builder.Default
     @ManyToMany
     @JoinTable(
         name = "player_secondary_positions",

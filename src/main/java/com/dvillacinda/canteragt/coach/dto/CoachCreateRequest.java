@@ -1,13 +1,15 @@
 package com.dvillacinda.canteragt.coach.dto;
 
 import com.dvillacinda.canteragt.user.dto.UserCreateRequest;
+import com.fasterxml.jackson.databind.PropertyNamingStrategies;
+import com.fasterxml.jackson.databind.annotation.JsonNaming;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
-@JsonConfig(namingStrategy = PropertyNamingStrategiesLOWER_CASE_WITH_UNDERSCORES)
+@JsonNaming (PropertyNamingStrategies.SnakeCaseStrategy.class)
 public record CoachCreateRequest(
     @NotNull @Valid UserCreateRequest userCreateRequest,
     @NotBlank @Size (max = 100) String firstName,

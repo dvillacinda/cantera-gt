@@ -2,12 +2,16 @@ package com.dvillacinda.canteragt.player.dto;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.Set;
 import java.util.UUID;
 
 import com.dvillacinda.canteragt.player.enums.Sex;
+import com.dvillacinda.canteragt.position.entity.PositionEntity;
 import com.dvillacinda.canteragt.user.dto.UserResponse;
+import com.fasterxml.jackson.databind.PropertyNamingStrategies;
+import com.fasterxml.jackson.databind.annotation.JsonNaming;
 
-@JsonConfig(namingStrategy = PropertyNamingStrategiesLOWER_CASE_WITH_UNDERSCORES)
+@JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
 public record PlayerResponse(
         UUID playerId,
         UserResponse userResponse,

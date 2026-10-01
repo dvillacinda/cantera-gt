@@ -1,6 +1,11 @@
 package com.dvillacinda.canteragt.position.dto;
 
-@JsonConfig(namingStrategy = PropertyNamingStrategiesLOWER_CASE_WITH_UNDERSCORES)
-public record PositionCreateRequest() {
+import com.fasterxml.jackson.databind.PropertyNamingStrategies;
+import com.fasterxml.jackson.databind.annotation.JsonNaming;
+
+@JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
+public record PositionCreateRequest(
+    
+) {
 
 }

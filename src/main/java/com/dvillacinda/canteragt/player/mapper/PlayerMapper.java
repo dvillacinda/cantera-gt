@@ -35,7 +35,7 @@ public class PlayerMapper {
                 .user(user)
                 .birthDate(player.birthDate())
                 .sex(player.sex())
-                .principalPosition(player.principalPositionId())
+                .principalPosition(player.principalPosition())
                 .secondaryPositions(player.secondaryPositions())
                 .build();
     }
