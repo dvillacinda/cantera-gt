@@ -9,9 +9,7 @@ import com.fasterxml.jackson.databind.annotation.JsonNaming;
 @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
 public record CoachResponse(
     UUID coachId,
-    UserResponse userResponse,
-    String firstName,
-    String lastName
+    UserResponse userResponse
 ) {
 
 }

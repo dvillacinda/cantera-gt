@@ -9,6 +9,7 @@ import com.fasterxml.jackson.databind.annotation.JsonNaming;
 
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
+import jakarta.validation.constraints.NotNull;
 
 /**
  * PATCH semantics: null fields are left unchanged; provided fields must not be blank.
@@ -20,5 +21,5 @@ public record PlayerUpdateRequest(
         @Pattern(regexp = "(?s).*\\S.*", message = "must not be blank") @Size(max = 100) String lastName,
         Sex sex,
         UUID principalPositionId,
-        Set<UUID> secondaryPositionsIds) {
+        @Size(max = 10) Set<@NotNull UUID> secondaryPositionsIds) {
 }

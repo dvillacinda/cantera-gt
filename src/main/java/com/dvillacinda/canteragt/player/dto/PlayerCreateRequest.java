@@ -23,7 +23,7 @@ public record PlayerCreateRequest(
         @NotNull @Past LocalDate birthDate,
         @NotNull Sex sex,
         @NotNull UUID principalPositionId,
-        Set<UUID> secondaryPositionsIds
+        @Size(max = 10) Set<@NotNull UUID> secondaryPositionsIds
 
 ) {
 

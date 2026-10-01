@@ -6,7 +6,7 @@ import java.util.Set;
 import java.util.UUID;
 
 import com.dvillacinda.canteragt.player.enums.Sex;
-import com.dvillacinda.canteragt.position.entity.PositionEntity;
+import com.dvillacinda.canteragt.position.dto.PositionResponse;
 import com.dvillacinda.canteragt.user.dto.UserResponse;
 import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
@@ -15,12 +15,10 @@ import com.fasterxml.jackson.databind.annotation.JsonNaming;
 public record PlayerResponse(
         UUID playerId,
         UserResponse userResponse,
-        String firstName,
-        String lastName,
         LocalDate birthDate,
         Sex sex,
-        PositionEntity principalPosition,
-        Set<PositionEntity> secondaryPositions,
+        PositionResponse principalPosition,
+        Set<PositionResponse> secondaryPositions,
         LocalDateTime createdAt,
         LocalDateTime updatedAt) {
 

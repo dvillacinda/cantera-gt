@@ -18,9 +18,7 @@ public class CoachMapper {
     public CoachResponse toResponse(CoachEntity coach) {
         return new CoachResponse(
                 coach.getCoachId(),
-                userMapper.toResponse(coach.getUser()),
-                coach.getUser().getFirstName(),
-                coach.getUser().getLastName());
+                userMapper.toResponse(coach.getUser()));
     }
 
     public CoachEntity toEntity(CoachCreateRequest coach, UserEntity user) {

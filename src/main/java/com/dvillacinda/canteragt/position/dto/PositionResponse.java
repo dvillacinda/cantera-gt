@@ -1,9 +1,19 @@
 package com.dvillacinda.canteragt.position.dto;
 
+import java.util.UUID;
+
+import com.dvillacinda.canteragt.position.enums.PositionCode;
+import com.dvillacinda.canteragt.position.enums.PositionLine;
 import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
 
 @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
-public record PositionResponse() {
+public record PositionResponse(
+    UUID positionId,
+    PositionCode positionCode,
+    PositionLine positionLine,
+    String name
+
+) {
 
 }
