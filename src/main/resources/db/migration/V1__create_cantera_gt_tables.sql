@@ -404,10 +404,6 @@ ALTER TABLE "player_secondary_positions" ADD FOREIGN KEY ("position_id") REFEREN
 
 ALTER TABLE "evaluation_templates" ADD FOREIGN KEY ("position_code") REFERENCES "positions" ("code") DEFERRABLE INITIALLY IMMEDIATE;
 
-ALTER TABLE "role_permissions" ADD FOREIGN KEY ("role_id") REFERENCES "roles" ("role_id") DEFERRABLE INITIALLY IMMEDIATE;
-
-ALTER TABLE "role_permissions" ADD FOREIGN KEY ("permission_id") REFERENCES "permissions" ("permission_id") DEFERRABLE INITIALLY IMMEDIATE;
-
 ALTER TABLE "academy_locations" ADD FOREIGN KEY ("academy_id") REFERENCES "academies" ("academy_id") DEFERRABLE INITIALLY IMMEDIATE;
 
 ALTER TABLE "academy_categories" ADD FOREIGN KEY ("academy_id") REFERENCES "academies" ("academy_id") DEFERRABLE INITIALLY IMMEDIATE;
