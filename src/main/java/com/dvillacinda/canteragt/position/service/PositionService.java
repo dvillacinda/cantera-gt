@@ -1,7 +1,9 @@
 package com.dvillacinda.canteragt.position.service;
 
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -49,6 +51,15 @@ public class PositionService {
     @Transactional (readOnly = true)
     public PositionResponse getResponseById(UUID positionId) {
         return positionMapper.toResponse(getEntityById(positionId));
+    }
+
+    /** Ordered as declared in PositionCode (goalkeeper first, striker last). */
+    @Transactional(readOnly = true)
+    public List<PositionResponse> getAllPositions() {
+        return positionRepository.findAll().stream()
+                .sorted(Comparator.comparing(PositionEntity::getPositionCode))
+                .map(positionMapper::toResponse)
+                .toList();
     }
 
     public PositionResponse createPosition(PositionCreateRequest request) {
