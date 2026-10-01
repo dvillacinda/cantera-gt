@@ -41,14 +41,14 @@ public class PlayerController {
                 .body(new ApiResponse<>(true, HttpStatus.CREATED, "Player created successfully", response));
     }
 
-    @GetMapping("/get-player/{playerId}")
+    @GetMapping("/get-player-by-id/{playerId}")
     public ResponseEntity<ApiResponse<PlayerResponse>> getPlayerById(@PathVariable UUID playerId) {
         log.info("Getting player with id {}", playerId);
         PlayerResponse response = playerService.getPlayerById(playerId);
         return ResponseEntity.ok(new ApiResponse<>(true, HttpStatus.OK, "Player found successfully", response));
     }
 
-    @PatchMapping("/update-player/{playerId}")
+    @PatchMapping("/update-player-by-id/{playerId}")
     public ResponseEntity<ApiResponse<PlayerResponse>> updatePlayerById(@PathVariable UUID playerId,
             @Valid @RequestBody PlayerUpdateRequest player) {
         log.info("Updating player with id {}", playerId);
@@ -56,7 +56,7 @@ public class PlayerController {
         return ResponseEntity.ok(new ApiResponse<>(true, HttpStatus.OK, "Player updated successfully", response));
     }
 
-    @DeleteMapping("/delete-player/{playerId}")
+    @DeleteMapping("/delete-player-by-id/{playerId}")
     public ResponseEntity<ApiResponse<Void>> deletePlayerById(@PathVariable UUID playerId) {
         log.info("Deleting player with id {}", playerId);
         playerService.deletePlayerById(playerId);

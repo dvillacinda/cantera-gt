@@ -46,6 +46,11 @@ public class PositionService {
                 .orElseThrow(() -> new NotFoundException("Position with id " + positionId + " not found"));
     }
 
+    @Transactional (readOnly = true)
+    public PositionResponse getResponseById(UUID positionId) {
+        return positionMapper.toResponse(getEntityById(positionId));
+    }
+
     public PositionResponse createPosition(PositionCreateRequest request) {
         PositionEntity position = positionMapper.toEntity(request);
         return positionMapper.toResponse(positionRepository.save(position));

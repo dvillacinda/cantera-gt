@@ -42,14 +42,14 @@ public class CoachController {
                 .body(new ApiResponse<>(true, HttpStatus.CREATED, "Coach created successfully", response));
     }
 
-    @DeleteMapping("/delete-coach/{coachId}")
+    @DeleteMapping("/delete-coach-by-id/{coachId}")
     public ResponseEntity<ApiResponse<Void>> deleteCoachById(@PathVariable UUID coachId) {
         log.info("Deleting coach with id {}", coachId);
         coachService.deleteCoachById(coachId);
         return ResponseEntity.ok(new ApiResponse<>(true, HttpStatus.OK, "Coach deleted successfully", null));
     }
 
-    @PatchMapping("/update-coach/{coachId}")
+    @PatchMapping("/update-coach-by-id/{coachId}")
     public ResponseEntity<ApiResponse<CoachResponse>> updateCoachById(@PathVariable UUID coachId,
             @Valid @RequestBody CoachUpdateRequest coach) {
         log.info("Updating coach with id {}", coachId);
@@ -57,7 +57,7 @@ public class CoachController {
         return ResponseEntity.ok(new ApiResponse<>(true, HttpStatus.OK, "Coach updated successfully", response));
     }
 
-    @GetMapping("/get-coach/{coachId}")
+    @GetMapping("/get-coach-by-id/{coachId}")
     public ResponseEntity<ApiResponse<CoachResponse>> getCoachById(@PathVariable UUID coachId) {
         log.info("Getting coach with id {}", coachId);
         CoachResponse response = coachService.getCoachById(coachId);
