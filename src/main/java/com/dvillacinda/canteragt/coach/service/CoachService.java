@@ -11,6 +11,7 @@ import com.dvillacinda.canteragt.coach.dto.CoachUpdateRequest;
 import com.dvillacinda.canteragt.coach.entity.CoachEntity;
 import com.dvillacinda.canteragt.coach.mapper.CoachMapper;
 import com.dvillacinda.canteragt.coach.repository.CoachRepository;
+import com.dvillacinda.canteragt.shared.enums.Status;
 import com.dvillacinda.canteragt.shared.exception.NotFoundException;
 import com.dvillacinda.canteragt.user.service.UserService;
 
@@ -69,5 +70,14 @@ public class CoachService {
             userService.updateNames(existing.getUser().getUserId(), request.firstName(), request.lastName());
         }
         return coachMapper.toResponse(coachRepository.save(existing));
+    }
+
+    @Transactional 
+    public CoachResponse updateCoachStatusById(UUID coachId, Status status) {
+        CoachEntity existing = coachRepository.findById(coachId).orElseThrow(
+            () -> new NotFoundException("Coach with id " + coachId + " not found")
+        );
+        userService.updateStatus(existing.getUser().getUserId(), status);
+        return coachMapper.toResponse(existing);
     }
 }

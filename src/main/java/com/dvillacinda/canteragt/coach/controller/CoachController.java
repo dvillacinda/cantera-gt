@@ -19,6 +19,7 @@ import com.dvillacinda.canteragt.coach.dto.CoachResponse;
 import com.dvillacinda.canteragt.coach.dto.CoachUpdateRequest;
 import com.dvillacinda.canteragt.coach.service.CoachService;
 import com.dvillacinda.canteragt.shared.dto.ApiResponse;
+import com.dvillacinda.canteragt.shared.enums.Status;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -65,6 +66,16 @@ public class CoachController {
         log.info("Getting coach with id {}", coachId);
         CoachResponse response = coachService.getCoachById(coachId);
         return ResponseEntity.ok(new ApiResponse<>(true, HttpStatus.OK, "Coach found successfully", response));
+    }
+
+    @PreAuthorize ("hasAnyRole('ACADEMY_ADMIN', 'SYSTEM_ADMIN')")
+    @PatchMapping ("/update-coach-status-by-id/{coachId}/{status}")
+
+    public ResponseEntity<ApiResponse<CoachResponse>> updateCoachStatusById(@PathVariable UUID coachId,
+            @PathVariable Status status) {
+        log.info("Updating coach status with id {}", coachId);
+        CoachResponse response = coachService.updateCoachStatusById(coachId, status);
+        return ResponseEntity.ok(new ApiResponse<>(true, HttpStatus.OK, "Coach status updated successfully", response));
     }
 
 }
