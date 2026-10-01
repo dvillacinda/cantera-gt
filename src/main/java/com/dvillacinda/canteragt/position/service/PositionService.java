@@ -1,5 +1,6 @@
 package com.dvillacinda.canteragt.position.service;
 
+import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
 
@@ -13,13 +14,13 @@ import lombok.RequiredArgsConstructor;
 
 @Service
 @RequiredArgsConstructor
-@Transactional 
+@Transactional
 public class PositionService {
 
     private final PositionRepository positionRepository;
 
     public Set<PositionEntity> findAllById(Set<UUID> positionIds) {
-        return positionRepository.findAllById(positionIds);
+        return new HashSet<>(positionRepository.findAllById(positionIds));
     }
 
 }
