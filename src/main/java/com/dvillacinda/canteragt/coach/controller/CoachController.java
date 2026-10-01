@@ -31,7 +31,7 @@ import lombok.extern.slf4j.Slf4j;
 public class CoachController {
 
     private final CoachService coachService;
-
+    
     @PostMapping("/create-coach")
     @PreAuthorize("hasAnyRole('ACADEMY_ADMIN', 'SYSTEM_ADMIN')")
     public ResponseEntity<ApiResponse<CoachResponse>> createCoach(@Valid @RequestBody CoachCreateRequest coach) {
@@ -43,12 +43,14 @@ public class CoachController {
     }
 
     @DeleteMapping("/delete-coach-by-id/{coachId}")
+    @PreAuthorize("hasAnyRole('ACADEMY_ADMIN' , 'SYSTEM_ADMIN')")
     public ResponseEntity<ApiResponse<Void>> deleteCoachById(@PathVariable UUID coachId) {
         log.info("Deleting coach with id {}", coachId);
         coachService.deleteCoachById(coachId);
         return ResponseEntity.ok(new ApiResponse<>(true, HttpStatus.OK, "Coach deleted successfully", null));
     }
 
+    @PreAuthorize ("hasAnyRole('ACADEMY_ADMIN', 'SYSTEM_ADMIN')")
     @PatchMapping("/update-coach-by-id/{coachId}")
     public ResponseEntity<ApiResponse<CoachResponse>> updateCoachById(@PathVariable UUID coachId,
             @Valid @RequestBody CoachUpdateRequest coach) {
@@ -57,6 +59,7 @@ public class CoachController {
         return ResponseEntity.ok(new ApiResponse<>(true, HttpStatus.OK, "Coach updated successfully", response));
     }
 
+    @PreAuthorize("hasAnyRole('ACADEMY_ADMIN')")
     @GetMapping("/get-coach-by-id/{coachId}")
     public ResponseEntity<ApiResponse<CoachResponse>> getCoachById(@PathVariable UUID coachId) {
         log.info("Getting coach with id {}", coachId);

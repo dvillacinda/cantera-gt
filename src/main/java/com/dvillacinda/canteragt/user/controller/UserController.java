@@ -4,6 +4,7 @@ import java.util.UUID;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -29,6 +30,7 @@ public class UserController {
 
     private final UserService userService;
 
+    @PreAuthorize ("hasAnyRole('ACADEMY_ADMIN', 'SYSTEM_ADMIN')")
     @GetMapping("/get-user/{userId}")
     public ResponseEntity<ApiResponse<UserResponse>> getUserById(@PathVariable UUID userId) {
         log.info("Getting user with id {}", userId);
@@ -36,6 +38,7 @@ public class UserController {
         return ResponseEntity.ok(new ApiResponse<>(true, HttpStatus.OK, "User found successfully", response));
     }
 
+    @PreAuthorize ("hasAnyRole('ACADEMY_ADMIN', 'SYSTEM_ADMIN')")
     @DeleteMapping("/delete-user/{userId}")
     public ResponseEntity<ApiResponse<Void>> deleteUserById(@PathVariable UUID userId) {
         log.info("Deleting user with id {}", userId);
@@ -43,6 +46,7 @@ public class UserController {
         return ResponseEntity.ok(new ApiResponse<>(true, HttpStatus.OK, "User deleted successfully", null));
     }
 
+    @PreAuthorize ("hasAnyRole('ACADEMY_ADMIN', 'SYSTEM_ADMIN')")
     @PatchMapping("/update-user/{userId}")
     public ResponseEntity<ApiResponse<UserResponse>> updateUserById(@PathVariable UUID userId,
             @Valid @RequestBody UserUpdateRequest user) {

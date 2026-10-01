@@ -41,6 +41,7 @@ public class PlayerController {
                 .body(new ApiResponse<>(true, HttpStatus.CREATED, "Player created successfully", response));
     }
 
+    @PreAuthorize("hasAnyRole('ACADEMY_ADMIN', 'COACH')")
     @GetMapping("/get-player-by-id/{playerId}")
     public ResponseEntity<ApiResponse<PlayerResponse>> getPlayerById(@PathVariable UUID playerId) {
         log.info("Getting player with id {}", playerId);
@@ -48,6 +49,7 @@ public class PlayerController {
         return ResponseEntity.ok(new ApiResponse<>(true, HttpStatus.OK, "Player found successfully", response));
     }
 
+    @PreAuthorize("hasAnyRole('ACADEMY_ADMIN', 'COACH')")
     @PatchMapping("/update-player-by-id/{playerId}")
     public ResponseEntity<ApiResponse<PlayerResponse>> updatePlayerById(@PathVariable UUID playerId,
             @Valid @RequestBody PlayerUpdateRequest player) {
@@ -56,6 +58,7 @@ public class PlayerController {
         return ResponseEntity.ok(new ApiResponse<>(true, HttpStatus.OK, "Player updated successfully", response));
     }
 
+    @PreAuthorize("hasAnyRole('ACADEMY_ADMIN', 'COACH', 'SYSTEM_ADMIN')")
     @DeleteMapping("/delete-player-by-id/{playerId}")
     public ResponseEntity<ApiResponse<Void>> deletePlayerById(@PathVariable UUID playerId) {
         log.info("Deleting player with id {}", playerId);

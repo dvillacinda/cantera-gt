@@ -4,6 +4,7 @@ import java.util.UUID;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -34,6 +35,7 @@ public class PositionController {
 
     private final PositionService positionService;
 
+    @PreAuthorize ("hasAnyRole('ACADEMY_ADMIN', 'COACH', 'SYSTEM_ADMIN')")
     @PostMapping("/create-position")
     public ResponseEntity<ApiResponse<PositionResponse>> createPosition(
             @Valid @RequestBody PositionCreateRequest request) {
@@ -45,6 +47,7 @@ public class PositionController {
                 .body(new ApiResponse<>(true, HttpStatus.CREATED, "Position created successfully", response));
     }
 
+    @PreAuthorize ("hasAnyRole('ACADEMY_ADMIN', 'COACH', 'SYSTEM_ADMIN')")
     @PatchMapping("/update-position-by-id/{position_id}")
     public ResponseEntity<ApiResponse<PositionResponse>> updatePosition(@PathVariable UUID position_id,
             @Valid @RequestBody PositionUpdateRequest request) {
@@ -53,6 +56,7 @@ public class PositionController {
         return ResponseEntity.ok(new ApiResponse<>(true, HttpStatus.OK, "Position updated successfully", response));
     }
 
+    @PreAuthorize ("hasAnyRole('ACADEMY_ADMIN', 'COACH', 'SYSTEM_ADMIN')")
     @GetMapping("/get-position-by-id/{position_id}")
     public ResponseEntity<ApiResponse<PositionResponse>> getMethodName(@RequestParam UUID position_id) {
         log.info("Getting position with id {}", position_id);
@@ -60,6 +64,7 @@ public class PositionController {
         return ResponseEntity.ok(new ApiResponse<>(true, HttpStatus.OK, "Position found successfully", response));
     }
 
+    @PreAuthorize ("hasAnyRole('ACADEMY_ADMIN', 'COACH', 'SYSTEM_ADMIN')")
     @DeleteMapping ("/delete-position-by-id/{position_id}")
     public ResponseEntity<ApiResponse<Void>> deletePositionById(@PathVariable UUID position_id) {
         log.info("Deleting position with id {}", position_id);
