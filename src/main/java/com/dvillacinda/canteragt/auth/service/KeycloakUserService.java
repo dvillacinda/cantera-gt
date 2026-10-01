@@ -5,12 +5,14 @@ import java.util.List;
 import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestClient;
 
+import com.dvillacinda.canteragt.shared.exception.ConflictException;
 import com.dvillacinda.canteragt.user.dto.UserCreateRequest;
 
 @Service
@@ -41,7 +43,7 @@ public class KeycloakUserService {
                 "email", request.email(),
                 "firstName", firstName,
                 "lastName", lastName,
-                "enabled", true,
+                "enabled", request.status().canLogIn(),
                 "emailVerified", false,
                 "requiredActions", List.of("UPDATE_PASSWORD"));
 
@@ -51,6 +53,9 @@ public class KeycloakUserService {
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(body)
                 .exchange((requestEntity, response) -> {
+                    if (response.getStatusCode().isSameCodeAs(HttpStatus.CONFLICT)) {
+                        throw new ConflictException("Username or email is already registered in Keycloak");
+                    }
                     if (!response.getStatusCode().is2xxSuccessful()) {
                         throw new IllegalStateException("Keycloak could not create the user: " + response.getStatusCode());
                     }
@@ -66,15 +71,26 @@ public class KeycloakUserService {
         return keycloakId;
     }
 
-    public void updateNames(String keycloakId, String firstName, String lastName) {
+    /**
+     * Keycloak only overwrites the attributes present in the body. A disabled user cannot log in nor
+     * refresh tokens; access tokens already issued stay valid until they expire.
+     */
+    public void updateUser(String keycloakId, String email, String firstName, String lastName, boolean enabled) {
         String token = accessToken();
-        Map<String, Object> body = Map.of("firstName", firstName, "lastName", lastName);
+        Map<String, Object> body = Map.of(
+                "email", email,
+                "firstName", firstName,
+                "lastName", lastName,
+                "enabled", enabled);
         restClient.put()
                 .uri(adminRealmUrl() + "/users/{id}", keycloakId)
                 .headers(headers -> headers.setBearerAuth(token))
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(body)
                 .retrieve()
+                .onStatus(status -> status.isSameCodeAs(HttpStatus.CONFLICT), (request, response) -> {
+                    throw new ConflictException("Email is already registered in Keycloak");
+                })
                 .toBodilessEntity();
     }
 
