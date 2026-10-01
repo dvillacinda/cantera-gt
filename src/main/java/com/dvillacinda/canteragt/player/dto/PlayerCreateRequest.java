@@ -2,9 +2,9 @@ package com.dvillacinda.canteragt.player.dto;
 
 import java.time.LocalDate;
 import java.util.Set;
+import java.util.UUID;
 
 import com.dvillacinda.canteragt.player.enums.Sex;
-import com.dvillacinda.canteragt.position.entity.PositionEntity;
 import com.dvillacinda.canteragt.user.dto.UserCreateRequest;
 import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
@@ -22,8 +22,8 @@ public record PlayerCreateRequest(
         @NotBlank @Size(max = 100) String lastName,
         @NotNull @Past LocalDate birthDate,
         @NotNull Sex sex,
-        @NotNull PositionEntity principalPosition,
-        Set<PositionEntity> secondaryPositions
+        @NotNull UUID principalPositionId,
+        Set<UUID> secondaryPositionsIds
 
 ) {
 

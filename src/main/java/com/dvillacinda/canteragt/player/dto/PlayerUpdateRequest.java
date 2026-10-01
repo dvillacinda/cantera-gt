@@ -1,9 +1,9 @@
 package com.dvillacinda.canteragt.player.dto;
 
 import java.util.Set;
+import java.util.UUID;
 
 import com.dvillacinda.canteragt.player.enums.Sex;
-import com.dvillacinda.canteragt.position.entity.PositionEntity;
 import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
 
@@ -19,6 +19,6 @@ public record PlayerUpdateRequest(
         @Pattern(regexp = "(?s).*\\S.*", message = "must not be blank") @Size(max = 100) String firstName,
         @Pattern(regexp = "(?s).*\\S.*", message = "must not be blank") @Size(max = 100) String lastName,
         Sex sex,
-        PositionEntity principalPosition,
-        Set<PositionEntity> secondaryPositions) {
+        UUID principalPositionId,
+        Set<UUID> secondaryPositionsIds) {
 }
