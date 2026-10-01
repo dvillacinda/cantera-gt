@@ -121,7 +121,7 @@ CREATE TABLE "template_dimensions" (
 --    el de la banda con mayor min_pct <= % obtenido. Sin huecos posibles.
 -- ---------------------------------------------------------------------
 CREATE TABLE "score_conversion_tables" (
-  "conversion_table_id" uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  "conversion_table_id" uuid DEFAULT uuid_generate_v7() PRIMARY KEY,
   "code"        varchar(60)  UNIQUE NOT NULL,
   "name"        varchar(150) NOT NULL,
   "is_default"  boolean      NOT NULL DEFAULT false,
@@ -134,7 +134,7 @@ CREATE UNIQUE INDEX score_conversion_tables_single_default_uq
     ON "score_conversion_tables" ("is_default") WHERE "is_default";
 
 CREATE TABLE "score_conversion_bands" (
-  "band_id"             uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  "band_id"             uuid DEFAULT uuid_generate_v7() PRIMARY KEY,
   "conversion_table_id" uuid NOT NULL REFERENCES "score_conversion_tables" ("conversion_table_id"),
   "min_pct"             decimal(5,2) NOT NULL,
   "score"               decimal(5,2) NOT NULL,
@@ -195,7 +195,7 @@ ALTER TABLE "evaluation_criteria"
 
 -- Niveles de rúbrica y anclas de escala (descriptor visible para el DT)
 CREATE TABLE "metric_scale_levels" (
-  "scale_level_id" uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  "scale_level_id" uuid DEFAULT uuid_generate_v7() PRIMARY KEY,
   "criterion_id"   uuid         NOT NULL REFERENCES "evaluation_criteria" ("criterion_id"),
   "level"          smallint     NOT NULL,
   "label"          varchar(80)  NOT NULL,
@@ -211,7 +211,7 @@ CREATE TABLE "metric_scale_levels" (
 -- Banda por límite: para LOWER-is-better se toma la banda con menor
 -- bound_value >= valor medido; para HIGHER, la de mayor bound_value <= valor.
 CREATE TABLE "metric_thresholds" (
-  "threshold_id"   uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  "threshold_id"   uuid DEFAULT uuid_generate_v7() PRIMARY KEY,
   "criterion_id"   uuid          NOT NULL REFERENCES "evaluation_criteria" ("criterion_id"),
   "category_id"    uuid          REFERENCES "categories" ("category_id"),
   "age_min"        smallint,
@@ -239,7 +239,7 @@ CREATE INDEX metric_thresholds_lookup_idx
 -- 6. Eventos de evaluación dentro de la sesión (bloques / rotación)
 -- ---------------------------------------------------------------------
 CREATE TABLE "session_evaluation_events" (
-  "session_event_id" uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  "session_event_id" uuid DEFAULT uuid_generate_v7() PRIMARY KEY,
   "session_id"       uuid        NOT NULL REFERENCES "training_sessions" ("session_id"),
   "template_id"      uuid        NOT NULL REFERENCES "evaluation_templates" ("template_id"),
   "block_order"      smallint    NOT NULL,
@@ -326,7 +326,7 @@ CREATE UNIQUE INDEX evaluation_results_eval_criterion_laterality_uq
 
 -- Intentos (sprint: mejor de 2) y observaciones (rúbrica por acción observada)
 CREATE TABLE "evaluation_observations" (
-  "observation_id"       uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  "observation_id"       uuid DEFAULT uuid_generate_v7() PRIMARY KEY,
   "evaluation_result_id" uuid         NOT NULL REFERENCES "evaluation_results" ("evaluation_result_id"),
   "sequence"             smallint     NOT NULL,
   "value"                decimal(8,3),       -- tiempo del intento
