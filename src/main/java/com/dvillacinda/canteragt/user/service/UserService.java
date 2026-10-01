@@ -62,6 +62,7 @@ public class UserService {
         if (playerRepository.existsByUser_UserId(userId)) {
             throw new ConflictException("User with id " + userId + " is assigned to a player, delete the player instead");
         }
+        keycloakUserService.deleteUser(user.getKeycloakId());
         userRepository.delete(user);
     }
 
