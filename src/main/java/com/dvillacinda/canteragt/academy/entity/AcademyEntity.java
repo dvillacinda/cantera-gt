@@ -9,6 +9,8 @@ import com.dvillacinda.canteragt.shared.entity.BaseEntity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
@@ -35,6 +37,7 @@ public class AcademyEntity extends BaseEntity {
     @Column (name = "name", nullable = false, length = 150)
     private String name;
 
+    @Enumerated (EnumType.STRING)
     @Column (name = "status", nullable = false)
     Status status;
 
