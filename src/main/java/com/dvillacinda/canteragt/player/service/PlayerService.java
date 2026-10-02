@@ -16,7 +16,7 @@ import com.dvillacinda.canteragt.player.mapper.PlayerMapper;
 import com.dvillacinda.canteragt.player.repository.PlayerRepository;
 import com.dvillacinda.canteragt.position.entity.PositionEntity;
 import com.dvillacinda.canteragt.position.service.PositionService;
-import com.dvillacinda.canteragt.shared.enums.Status;
+import com.dvillacinda.canteragt.shared.enums.UserStatus;
 import com.dvillacinda.canteragt.shared.exception.ConflictException;
 import com.dvillacinda.canteragt.shared.exception.NotFoundException;
 import com.dvillacinda.canteragt.user.service.UserService;
@@ -103,7 +103,7 @@ public class PlayerService {
         }
     }
 
-    public PlayerResponse updatePlayerStatusById(UUID playerId, Status status) {
+    public PlayerResponse updatePlayerStatusById(UUID playerId, UserStatus status) {
         PlayerEntity existing = playerRepository.findById(playerId).orElseThrow(
                 () -> new NotFoundException("Player with id " + playerId + " not found"));
         userService.updateStatus(existing.getUser().getUserId(), status);

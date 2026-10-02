@@ -4,7 +4,7 @@ import java.util.UUID;
 
 
 import com.dvillacinda.canteragt.shared.entity.BaseEntity;
-import com.dvillacinda.canteragt.shared.enums.Status;
+import com.dvillacinda.canteragt.shared.enums.UserStatus;
 
 import org.hibernate.annotations.UuidGenerator;
 
@@ -53,6 +53,6 @@ public class UserEntity extends BaseEntity {
 
     @Enumerated(EnumType.STRING)
     @Column (name = "status", nullable = false)
-    private Status status ;
+    private UserStatus status ;
 
 }

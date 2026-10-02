@@ -4,7 +4,7 @@ import java.util.UUID;
 
 import org.hibernate.annotations.UuidGenerator;
 
-import com.dvillacinda.canteragt.academy.enums.Status;
+import com.dvillacinda.canteragt.shared.enums.Status;
 import com.dvillacinda.canteragt.shared.entity.BaseEntity;
 
 import jakarta.persistence.Column;

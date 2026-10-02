@@ -29,7 +29,7 @@ import com.dvillacinda.canteragt.position.entity.PositionEntity;
 import com.dvillacinda.canteragt.position.enums.PositionCode;
 import com.dvillacinda.canteragt.position.enums.PositionLine;
 import com.dvillacinda.canteragt.position.mapper.PositionMapper;
-import com.dvillacinda.canteragt.shared.enums.Status;
+import com.dvillacinda.canteragt.shared.enums.UserStatus;
 import com.dvillacinda.canteragt.user.entity.UserEntity;
 import com.dvillacinda.canteragt.user.mapper.UserMapper;
 import com.dvillacinda.canteragt.user.repository.UserRepository;
@@ -56,7 +56,7 @@ class CurrentUserServiceTest {
     @Test
     void returnsPlayerProfileForRegisteredPlayer() {
         UserEntity user = UserEntity.builder().userId(UUID.randomUUID()).keycloakId("kc-player")
-                .username("player").status(Status.ACTIVE).build();
+                .username("player").status(UserStatus.ACTIVE).build();
         PositionEntity striker = PositionEntity.builder().positionId(UUID.randomUUID())
                 .positionCode(PositionCode.ST).positionLine(PositionLine.FORWARD).name("Delantero centro").build();
         PlayerEntity player = PlayerEntity.builder().playerId(UUID.randomUUID()).user(user)

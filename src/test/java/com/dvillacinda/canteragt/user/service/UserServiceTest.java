@@ -21,7 +21,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import com.dvillacinda.canteragt.auth.service.KeycloakUserService;
 import com.dvillacinda.canteragt.coach.repository.CoachRepository;
 import com.dvillacinda.canteragt.player.repository.PlayerRepository;
-import com.dvillacinda.canteragt.shared.enums.Status;
+import com.dvillacinda.canteragt.shared.enums.UserStatus;
 import com.dvillacinda.canteragt.user.dto.UserUpdateRequest;
 import com.dvillacinda.canteragt.user.entity.UserEntity;
 import com.dvillacinda.canteragt.user.mapper.UserMapper;
@@ -45,7 +45,7 @@ class UserServiceTest {
 
     private UserEntity activeUser() {
         return UserEntity.builder().userId(UUID.randomUUID()).keycloakId("kc-1").email("old@example.com")
-                .username("user").firstName("Ana").lastName("López").status(Status.ACTIVE).build();
+                .username("user").firstName("Ana").lastName("López").status(UserStatus.ACTIVE).build();
     }
 
     @Test
@@ -53,10 +53,10 @@ class UserServiceTest {
         UserEntity user = activeUser();
         when(userRepository.findById(user.getUserId())).thenReturn(Optional.of(user));
 
-        userService.updateStatus(user.getUserId(), Status.INACTIVE);
+        userService.updateStatus(user.getUserId(), UserStatus.INACTIVE);
 
         verify(keycloakUserService).updateUser("kc-1", "old@example.com", "Ana", "López", false);
-        assertEquals(Status.INACTIVE, user.getStatus());
+        assertEquals(UserStatus.INACTIVE, user.getStatus());
     }
 
     @Test
@@ -77,7 +77,7 @@ class UserServiceTest {
         when(userRepository.saveAndFlush(user)).thenThrow(new DataIntegrityViolationException("duplicated"));
 
         assertThrows(DataIntegrityViolationException.class,
-                () -> userService.updateStatus(user.getUserId(), Status.LOCKED));
+                () -> userService.updateStatus(user.getUserId(), UserStatus.LOCKED));
 
         InOrder order = inOrder(keycloakUserService);
         order.verify(keycloakUserService).updateUser("kc-1", "old@example.com", "Ana", "López", false);

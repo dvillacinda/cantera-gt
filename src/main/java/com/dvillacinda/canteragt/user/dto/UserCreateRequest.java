@@ -1,6 +1,6 @@
 package com.dvillacinda.canteragt.user.dto;
 
-import com.dvillacinda.canteragt.shared.enums.Status;
+import com.dvillacinda.canteragt.shared.enums.UserStatus;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
@@ -17,7 +17,7 @@ public record UserCreateRequest(
 
         @NotBlank @Size(max = 100) String username,
 
-        @NotNull Status status
+        @NotNull UserStatus status
 
 ) {
 

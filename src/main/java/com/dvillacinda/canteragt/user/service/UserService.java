@@ -14,7 +14,7 @@ import com.dvillacinda.canteragt.user.entity.UserEntity;
 import com.dvillacinda.canteragt.user.mapper.UserMapper;
 import com.dvillacinda.canteragt.user.repository.UserRepository;
 import com.dvillacinda.canteragt.auth.service.KeycloakUserService;
-import com.dvillacinda.canteragt.shared.enums.Status;
+import com.dvillacinda.canteragt.shared.enums.UserStatus;
 import com.dvillacinda.canteragt.shared.exception.ConflictException;
 import com.dvillacinda.canteragt.shared.exception.NotFoundException;
 
@@ -89,7 +89,7 @@ public class UserService {
 
     /** Disables the Keycloak account when the status does not allow logging in (INACTIVE, LOCKED). */
     @Transactional
-    public void updateStatus(UUID userId, Status status) {
+    public void updateStatus(UUID userId, UserStatus status) {
         UserEntity user = findById(userId);
         synchronize(user, user.getEmail(), user.getFirstName(), user.getLastName(), status);
     }
@@ -100,11 +100,11 @@ public class UserService {
     }
 
     /** Applies the change in Keycloak first and reverts it there if the database write fails. */
-    private void synchronize(UserEntity user, String email, String firstName, String lastName, Status status) {
+    private void synchronize(UserEntity user, String email, String firstName, String lastName, UserStatus status) {
         String previousEmail = user.getEmail();
         String previousFirstName = user.getFirstName();
         String previousLastName = user.getLastName();
-        Status previousStatus = user.getStatus();
+        UserStatus previousStatus = user.getStatus();
         keycloakUserService.updateUser(user.getKeycloakId(), email, firstName, lastName, status.canLogIn());
         user.setEmail(email);
         user.setFirstName(firstName);

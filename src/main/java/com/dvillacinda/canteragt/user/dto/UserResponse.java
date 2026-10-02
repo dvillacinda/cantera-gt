@@ -3,7 +3,7 @@ package com.dvillacinda.canteragt.user.dto;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-import com.dvillacinda.canteragt.shared.enums.Status;
+import com.dvillacinda.canteragt.shared.enums.UserStatus;
 
 import tools.jackson.databind.PropertyNamingStrategies;
 import tools.jackson.databind.annotation.JsonNaming;
@@ -16,7 +16,7 @@ public record UserResponse(
         String username,
         String firstName,
         String lastName,
-        Status status,
+        UserStatus status,
         LocalDateTime createdAt,
         LocalDateTime updatedAt) {
 
