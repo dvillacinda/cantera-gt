@@ -57,7 +57,7 @@ public class PositionService {
     @Transactional(readOnly = true)
     public List<PositionResponse> getAllPositions() {
         return positionRepository.findAll().stream()
-                .sorted(Comparator.comparing(PositionEntity::getPositionCode))
+                .sorted(Comparator.comparing(position -> position.getPositionCode()))
                 .map(positionMapper::toResponse)
                 .toList();
     }
