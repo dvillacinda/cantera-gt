@@ -5,7 +5,7 @@ import java.util.UUID;
 
 import com.dvillacinda.canteragt.shared.enums.Status;
 
-public record AdminAcademyResponse(
+public record AcademyAdminResponse(
     UUID academyAdminId,
     UUID academyId,
     UUID userId,

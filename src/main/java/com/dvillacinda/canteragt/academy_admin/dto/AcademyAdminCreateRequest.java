@@ -8,7 +8,7 @@ import jakarta.validation.constraints.NotNull;
 import tools.jackson.databind.PropertyNamingStrategies;
 import tools.jackson.databind.annotation.JsonNaming;
 @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
-public record AdminAcademyCreateRequest(
+public record AcademyAdminCreateRequest(
     @NotNull UUID academyId,
     @NotNull UUID userId,
     @NotNull Status status
