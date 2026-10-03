@@ -13,6 +13,7 @@ import com.dvillacinda.canteragt.academy_admin.dto.AcademyAdminUpdateRequest;
 import com.dvillacinda.canteragt.academy_admin.entity.AcademyAdminEntity;
 import com.dvillacinda.canteragt.academy_admin.mapper.AcademyAdminMapper;
 import com.dvillacinda.canteragt.academy_admin.repository.AcademyAdminRepository;
+import com.dvillacinda.canteragt.shared.exception.ConflictException;
 import com.dvillacinda.canteragt.shared.exception.NotFoundException;
 import com.dvillacinda.canteragt.user.mapper.UserMapper;
 import com.dvillacinda.canteragt.user.service.UserService;
@@ -33,6 +34,9 @@ public class AcademyAdminService {
     public AcademyAdminResponse createAcademyAdmin(AcademyAdminCreateRequest request) {
 
         var userExist = userMapper.toEntity(userService.getUserById(request.userId()));
+        if (!userService.hasKeycloakRealmRole(userExist.getKeycloakId(), "ACADEMY_ADMIN")) {
+            throw new ConflictException("User must have the ACADEMY_ADMIN role to be assigned to an academy");
+        }
         var academyExist = academyMapper.toEntity(academyService.getAcademyById(request.academyId()));
 
         return academyAdminMapper

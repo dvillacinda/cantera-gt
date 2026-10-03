@@ -53,6 +53,10 @@ public class UserService {
         keycloakUserService.assignRealmRole(keycloakId, role);
     }
 
+    public boolean hasKeycloakRealmRole(String keycloakId, String role) {
+        return keycloakUserService.hasRealmRole(keycloakId, role);
+    }
+
     @Transactional
     public void deleteUserById(UUID userId) {
         UserEntity user = userRepository.findById(userId)
