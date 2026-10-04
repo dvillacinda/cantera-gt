@@ -19,6 +19,15 @@ public class CategoryMapper {
                 .status(Status.ACTIVE)
                 .build();
     }
+    public CategoryEntity toEntity(CategoryResponse response) {
+        return CategoryEntity.builder()
+                .name(response.name())
+                .minAge(response.minAge())
+                .maxAge(response.maxAge())
+                .categoryCode(response.categoryCode())
+                .status(Status.ACTIVE)
+                .build();
+    }
 
     public CategoryResponse toResponse(CategoryEntity category) {
         return new CategoryResponse(
