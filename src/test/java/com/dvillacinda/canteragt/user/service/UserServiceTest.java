@@ -64,7 +64,7 @@ class UserServiceTest {
         UserEntity user = activeUser();
         when(userRepository.findById(user.getUserId())).thenReturn(Optional.of(user));
 
-        userService.updateUser(user.getUserId(), new UserUpdateRequest("new@example.com", null, null, null));
+        userService.updateUser(user.getUserId(), new UserUpdateRequest("new@example.com", null, null));
 
         verify(keycloakUserService).updateUser("kc-1", "new@example.com", "Ana", "López", true);
         assertEquals("new@example.com", user.getEmail());

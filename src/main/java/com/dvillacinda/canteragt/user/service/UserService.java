@@ -78,7 +78,7 @@ public class UserService {
                 request.email() != null ? request.email() : existing.getEmail(),
                 request.firstName() != null ? request.firstName() : existing.getFirstName(),
                 request.lastName() != null ? request.lastName() : existing.getLastName(),
-                request.status() != null ? request.status() : existing.getStatus());
+                existing.getStatus());
         return userMapper.toResponse(existing);
     }
 
@@ -93,9 +93,10 @@ public class UserService {
 
     /** Disables the Keycloak account when the status does not allow logging in (INACTIVE, LOCKED). */
     @Transactional
-    public void updateStatus(UUID userId, UserStatus status) {
+    public UserResponse updateStatus(UUID userId, UserStatus status) {
         UserEntity user = findById(userId);
         synchronize(user, user.getEmail(), user.getFirstName(), user.getLastName(), status);
+        return userMapper.toResponse(user);
     }
 
     private UserEntity findById(UUID userId) {

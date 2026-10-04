@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.dvillacinda.canteragt.shared.dto.ApiResponse;
+import com.dvillacinda.canteragt.shared.enums.UserStatus;
 import com.dvillacinda.canteragt.user.dto.UserResponse;
 import com.dvillacinda.canteragt.user.dto.UserUpdateRequest;
 import com.dvillacinda.canteragt.user.service.UserService;
@@ -54,6 +55,14 @@ public class UserController {
         UserResponse response = userService.updateUser(userId, user);
         return ResponseEntity.ok(new ApiResponse<>(true, HttpStatus.OK, "User updated successfully", response));
     }
-    
+
+    @PreAuthorize ("hasAnyRole('ACADEMY_ADMIN', 'SYSTEM_ADMIN')")
+    @PatchMapping("/update-user-status-by-id/{userId}/{status}")
+    public ResponseEntity<ApiResponse<UserResponse>> updateUserStatusById(@PathVariable UUID userId,
+            @PathVariable UserStatus status) {
+        log.info("Updating user status with id {}", userId);
+        UserResponse response = userService.updateStatus(userId, status);
+        return ResponseEntity.ok(new ApiResponse<>(true, HttpStatus.OK, "User status updated successfully", response));
+    }
 
 }

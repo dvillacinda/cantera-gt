@@ -13,6 +13,7 @@ import com.dvillacinda.canteragt.academy_admin.dto.AcademyAdminUpdateRequest;
 import com.dvillacinda.canteragt.academy_admin.entity.AcademyAdminEntity;
 import com.dvillacinda.canteragt.academy_admin.mapper.AcademyAdminMapper;
 import com.dvillacinda.canteragt.academy_admin.repository.AcademyAdminRepository;
+import com.dvillacinda.canteragt.shared.enums.Status;
 import com.dvillacinda.canteragt.shared.exception.ConflictException;
 import com.dvillacinda.canteragt.shared.exception.NotFoundException;
 import com.dvillacinda.canteragt.user.mapper.UserMapper;
@@ -47,9 +48,6 @@ public class AcademyAdminService {
         AcademyAdminEntity academyAdminExist = academyAdminRepository.findById(academyAdminId)
                 .orElseThrow(() -> new NotFoundException("Academy Admin not found"));
 
-        if (request.status() != null)
-            academyAdminExist.setStatus(request.status());
-
         if (request.academyId() != null) {
             var academyExist = academyMapper.toEntity(academyService.getAcademyById(request.academyId()));
             academyAdminExist.setAcademy(academyExist);
@@ -61,6 +59,13 @@ public class AcademyAdminService {
         }
 
         return academyAdminMapper.toResponse(academyAdminRepository.save(academyAdminExist));
+    }
+
+    public AcademyAdminResponse updateAcademyAdminStatusById(UUID academyAdminId, Status status) {
+        AcademyAdminEntity academyAdmin = academyAdminRepository.findById(academyAdminId)
+                .orElseThrow(() -> new NotFoundException("Academy Admin not found"));
+        academyAdmin.setStatus(status);
+        return academyAdminMapper.toResponse(academyAdminRepository.save(academyAdmin));
     }
 
 }
