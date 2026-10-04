@@ -4,6 +4,7 @@ import java.util.UUID;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 import com.dvillacinda.canteragt.season.dto.SeasonCreateRequest;
 import com.dvillacinda.canteragt.season.dto.SeasonResponse;
@@ -27,6 +28,7 @@ public class SeasonService {
         return seasonMapper.toResponse(season);
     }
 
+    @PreAuthorize("hasRole('SYSTEM_ADMIN')")
     public SeasonResponse createSeason(SeasonCreateRequest request) {
         return seasonMapper.toResponse(seasonRepository.save(seasonMapper.toEntity(request)));
     }

@@ -19,7 +19,9 @@ import com.dvillacinda.canteragt.shared.dto.ApiResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.security.core.Authentication;
 
 @RestController
 @RequestMapping("/api/v1/academy-category")
@@ -32,10 +34,11 @@ public class AcademyCategory {
 
     @PostMapping("/create-academy-category")
     public ResponseEntity<ApiResponse<AcademyCategoryResponse>> createAcademyCategory(
-            @RequestBody @Validated AcademyCategoryCreateRequest request) {
+            @RequestHeader("X-Academy-Id") UUID academyId,
+            @RequestBody @Validated AcademyCategoryCreateRequest request, Authentication authentication) {
         log.info("Creating academy category");
 
-        var response = academyCategoryService.createAcademyCategory(request);
+        var response = academyCategoryService.createAcademyCategory(academyId, request, authentication);
 
         log.info("Academy category created with id {}", response.academyCategoryId());
         return ResponseEntity.status(HttpStatus.CREATED)
@@ -43,9 +46,11 @@ public class AcademyCategory {
     }
 
     @GetMapping("/get-academy-category-by-id/{id}")
-    public ResponseEntity<ApiResponse<AcademyCategoryResponse>> getAcademyCategoryById(@RequestParam UUID id) {
+    public ResponseEntity<ApiResponse<AcademyCategoryResponse>> getAcademyCategoryById(
+            @PathVariable("id") UUID id, @RequestHeader("X-Academy-Id") UUID academyId,
+            Authentication authentication) {
         log.info("Getting academy category with id {}", id);
-        var response = academyCategoryService.getAcademyCategoryById(id);
+        var response = academyCategoryService.getAcademyCategoryById(id, academyId, authentication);
         return ResponseEntity
                 .ok(new ApiResponse<>(true, HttpStatus.OK, "Academy category found successfully", response));
     }

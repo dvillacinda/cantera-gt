@@ -35,6 +35,7 @@ public class CateogryController {
     private final CategoryService categoryService;
 
     @PostMapping("/create-category")
+    @PreAuthorize("hasRole('SYSTEM_ADMIN')")
     public ResponseEntity<ApiResponse<CategoryResponse>> createCategory(
             @Valid @RequestBody CategoryCreateRequest request) {
         log.info("Creating coach");
@@ -45,6 +46,7 @@ public class CateogryController {
     }
 
     @PatchMapping("/update-category-by-id/{categoryId}")
+    @PreAuthorize("hasRole('SYSTEM_ADMIN')")
     public ResponseEntity<ApiResponse<CategoryResponse>> updateCategoryById(@PathVariable UUID categoryId,
             @Valid @RequestBody CategoryUpdateRequest request) {
         log.info("Updating coach with id {}", categoryId);
@@ -60,6 +62,7 @@ public class CateogryController {
     }
 
     @DeleteMapping("/delete-category-by-id/{categoryId}")
+    @PreAuthorize("hasRole('SYSTEM_ADMIN')")
     public ResponseEntity<ApiResponse<Void>> deleteCategoryById(@PathVariable UUID categoryId) {
         log.info("Deleting coach with id {}", categoryId);
         categoryService.deleteCategoryById(categoryId);
@@ -67,6 +70,7 @@ public class CateogryController {
     }
 
     @PatchMapping("/update-category-status-by-id/{categoryId}/{status}")
+    @PreAuthorize("hasRole('SYSTEM_ADMIN')")
     public ResponseEntity<ApiResponse<CategoryResponse>> updateCategoryStatusById(@PathVariable UUID categoryId,
             @PathVariable Status status) {
         log.info("Updating coach status with id {}", categoryId);

@@ -4,6 +4,7 @@ import java.util.UUID;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 import com.dvillacinda.canteragt.category.dto.CategoryCreateRequest;
 import com.dvillacinda.canteragt.category.dto.CategoryResponse;
@@ -22,6 +23,7 @@ public class CategoryService {
     private final CategoryRepository categoryRepository;
     private final CategoryMapper categoryMapper;
 
+    @PreAuthorize("hasRole('SYSTEM_ADMIN')")
     public CategoryResponse createCategory(CategoryCreateRequest request) {
         var category = categoryRepository.save(categoryMapper.toEntity(request));
         return categoryMapper.toResponse(category);
@@ -34,12 +36,14 @@ public class CategoryService {
         return categoryMapper.toResponse(category);
     }
 
+    @PreAuthorize("hasRole('SYSTEM_ADMIN')")
     public void deleteCategoryById(UUID categoryId) {
         var category = categoryRepository.findById(categoryId)
                 .orElseThrow(() -> new NotFoundException("Category with id " + categoryId + " not found"));
         categoryRepository.delete(category);
     }
 
+    @PreAuthorize("hasRole('SYSTEM_ADMIN')")
     public CategoryResponse updateCategory(UUID categoryId, CategoryUpdateRequest request) {
         var exist = categoryRepository.findById(categoryId)
                 .orElseThrow(() -> new NotFoundException("Category with id " + categoryId + " not found"));
@@ -55,6 +59,7 @@ public class CategoryService {
         return categoryMapper.toResponse(categoryRepository.save(exist));
     }
 
+    @PreAuthorize("hasRole('SYSTEM_ADMIN')")
     public CategoryResponse updateCategoryStatusById(UUID categoryId, Status status) {
         var exist = categoryRepository.findById(categoryId)
                 .orElseThrow(() -> new NotFoundException("Category with id " + categoryId + " not found"));

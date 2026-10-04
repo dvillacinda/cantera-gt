@@ -1,12 +1,14 @@
 package com.dvillacinda.canteragt.academy_category.service;
 
 import java.util.UUID;
+import org.springframework.security.core.Authentication;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.dvillacinda.canteragt.academy.mapper.AcademyMapper;
 import com.dvillacinda.canteragt.academy.service.AcademyService;
+import com.dvillacinda.canteragt.academy_admin.service.AcademyAccessService;
 import com.dvillacinda.canteragt.academy_category.dto.AcademyCategoryCreateRequest;
 import com.dvillacinda.canteragt.academy_category.dto.AcademyCategoryResponse;
 import com.dvillacinda.canteragt.academy_category.mapper.AcademyCategoryMapper;
@@ -29,15 +31,19 @@ public class AcademyCategoryService {
     private final AcademyService academyService;
     private final CategoryService categoryService;
     private final SeasonService seasonService;
+    private final AcademyAccessService academyAccessService;
 
     private final AcademyMapper academyMapper;
     private final CategoryMapper categoryMapper;
     private final SeasonMapper seasonMapper;
 
-    public AcademyCategoryResponse createAcademyCategory(AcademyCategoryCreateRequest request) {
+    public AcademyCategoryResponse createAcademyCategory(UUID requestedAcademyId,
+            AcademyCategoryCreateRequest request, Authentication authentication) {
+
+        UUID academyId = academyAccessService.requireAcademyAccess(authentication, requestedAcademyId);
 
         var season = seasonMapper.toEntity(seasonService.getSeasonById(request.seasonId()));
-        var academy = academyMapper.toEntity(academyService.getAcademyById(request.academyId()));
+        var academy = academyMapper.toEntity(academyService.getAcademyById(academyId));
         var category = categoryMapper.toEntity(categoryService.getCategoryById(request.categoryId()));
 
         return academyCategoryMapper
@@ -46,8 +52,11 @@ public class AcademyCategoryService {
     }
 
     @Transactional(readOnly = true)
-    public AcademyCategoryResponse getAcademyCategoryById(UUID academyCategoryId) {
-        var academyCategory = academyCategoryRepository.findById(academyCategoryId).orElseThrow(
+    public AcademyCategoryResponse getAcademyCategoryById(UUID academyCategoryId, UUID requestedAcademyId,
+            Authentication authentication) {
+        UUID academyId = academyAccessService.requireAcademyAccess(authentication, requestedAcademyId);
+        var academyCategory = academyCategoryRepository
+                .findByAcademyCategoryIdAndAcademy_AcademyId(academyCategoryId, academyId).orElseThrow(
                 () -> new NotFoundException("AcademyCategory with id " + academyCategoryId + " not found"));
 
         return academyCategoryMapper.toResponse(academyCategory);

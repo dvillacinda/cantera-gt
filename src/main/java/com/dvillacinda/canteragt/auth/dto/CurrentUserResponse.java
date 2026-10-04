@@ -19,9 +19,14 @@ import tools.jackson.databind.annotation.JsonNaming;
 @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
 public record CurrentUserResponse(
         List<String> roles,
+        List<AcademyProfile> academies,
         UserResponse user,
         PlayerProfile player,
         CoachProfile coach) {
+
+    @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
+    public record AcademyProfile(UUID academyId, String name) {
+    }
 
     @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
     public record PlayerProfile(

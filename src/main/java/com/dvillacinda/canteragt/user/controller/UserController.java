@@ -5,12 +5,14 @@ import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.dvillacinda.canteragt.shared.dto.ApiResponse;
@@ -33,35 +35,39 @@ public class UserController {
 
     @PreAuthorize ("hasAnyRole('ACADEMY_ADMIN', 'SYSTEM_ADMIN')")
     @GetMapping("/get-user/{userId}")
-    public ResponseEntity<ApiResponse<UserResponse>> getUserById(@PathVariable UUID userId) {
+    public ResponseEntity<ApiResponse<UserResponse>> getUserById(@PathVariable UUID userId,
+            @RequestHeader("X-Academy-Id") UUID academyId, Authentication authentication) {
         log.info("Getting user with id {}", userId);
-        UserResponse response = userService.getUserById(userId);
+        UserResponse response = userService.getUserById(userId, authentication, academyId);
         return ResponseEntity.ok(new ApiResponse<>(true, HttpStatus.OK, "User found successfully", response));
     }
 
     @PreAuthorize ("hasAnyRole('ACADEMY_ADMIN', 'SYSTEM_ADMIN')")
     @DeleteMapping("/delete-user/{userId}")
-    public ResponseEntity<ApiResponse<Void>> deleteUserById(@PathVariable UUID userId) {
+    public ResponseEntity<ApiResponse<Void>> deleteUserById(@PathVariable UUID userId,
+            @RequestHeader("X-Academy-Id") UUID academyId, Authentication authentication) {
         log.info("Deleting user with id {}", userId);
-        userService.deleteUserById(userId);
+        userService.deleteUserById(userId, authentication, academyId);
         return ResponseEntity.ok(new ApiResponse<>(true, HttpStatus.OK, "User deleted successfully", null));
     }
 
     @PreAuthorize ("hasAnyRole('ACADEMY_ADMIN', 'SYSTEM_ADMIN')")
     @PatchMapping("/update-user/{userId}")
     public ResponseEntity<ApiResponse<UserResponse>> updateUserById(@PathVariable UUID userId,
+            @RequestHeader("X-Academy-Id") UUID academyId, Authentication authentication,
             @Valid @RequestBody UserUpdateRequest user) {
         log.info("Updating user with id {}", userId);
-        UserResponse response = userService.updateUser(userId, user);
+        UserResponse response = userService.updateUser(userId, user, authentication, academyId);
         return ResponseEntity.ok(new ApiResponse<>(true, HttpStatus.OK, "User updated successfully", response));
     }
 
     @PreAuthorize ("hasAnyRole('ACADEMY_ADMIN', 'SYSTEM_ADMIN')")
     @PatchMapping("/update-user-status-by-id/{userId}/{status}")
     public ResponseEntity<ApiResponse<UserResponse>> updateUserStatusById(@PathVariable UUID userId,
-            @PathVariable UserStatus status) {
+            @PathVariable UserStatus status, @RequestHeader("X-Academy-Id") UUID academyId,
+            Authentication authentication) {
         log.info("Updating user status with id {}", userId);
-        UserResponse response = userService.updateStatus(userId, status);
+        UserResponse response = userService.updateStatus(userId, status, authentication, academyId);
         return ResponseEntity.ok(new ApiResponse<>(true, HttpStatus.OK, "User status updated successfully", response));
     }
 

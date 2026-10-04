@@ -1,6 +1,7 @@
 package com.dvillacinda.canteragt.auth.service;
 
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
@@ -11,6 +12,9 @@ import com.dvillacinda.canteragt.auth.dto.CurrentUserResponse;
 import com.dvillacinda.canteragt.auth.dto.CurrentUserResponse.CoachProfile;
 import com.dvillacinda.canteragt.auth.dto.CurrentUserResponse.PlayerProfile;
 import com.dvillacinda.canteragt.coach.repository.CoachRepository;
+import com.dvillacinda.canteragt.academy_admin.repository.AcademyAdminRepository;
+import com.dvillacinda.canteragt.auth.dto.CurrentUserResponse.AcademyProfile;
+import com.dvillacinda.canteragt.shared.enums.Status;
 import com.dvillacinda.canteragt.player.entity.PlayerEntity;
 import com.dvillacinda.canteragt.player.repository.PlayerRepository;
 import com.dvillacinda.canteragt.position.mapper.PositionMapper;
@@ -26,6 +30,7 @@ public class CurrentUserService {
     private final UserRepository userRepository;
     private final PlayerRepository playerRepository;
     private final CoachRepository coachRepository;
+    private final AcademyAdminRepository academyAdminRepository;
     private final UserMapper userMapper;
     private final PositionMapper positionMapper;
 
@@ -33,7 +38,7 @@ public class CurrentUserService {
     public CurrentUserResponse getCurrentUser(AuthenticatedUser authenticated) {
         return userRepository.findByKeycloakId(authenticated.keycloakId())
                 .map(user -> toResponse(authenticated, user))
-                .orElseGet(() -> new CurrentUserResponse(authenticated.roles(), null, null, null));
+                .orElseGet(() -> new CurrentUserResponse(authenticated.roles(), List.of(), null, null, null));
     }
 
     private CurrentUserResponse toResponse(AuthenticatedUser authenticated, UserEntity user) {
@@ -43,7 +48,12 @@ public class CurrentUserService {
         CoachProfile coach = coachRepository.findByUser_UserId(user.getUserId())
                 .map(found -> new CoachProfile(found.getCoachId()))
                 .orElse(null);
-        return new CurrentUserResponse(authenticated.roles(), userMapper.toResponse(user), player, coach);
+        var academies = academyAdminRepository.findByUser_KeycloakIdAndStatus(authenticated.keycloakId(), Status.ACTIVE)
+                .stream()
+                .map(assignment -> new AcademyProfile(assignment.getAcademy().getAcademyId(),
+                        assignment.getAcademy().getName()))
+                .toList();
+        return new CurrentUserResponse(authenticated.roles(), academies, userMapper.toResponse(user), player, coach);
     }
 
     private PlayerProfile toPlayerProfile(PlayerEntity player) {

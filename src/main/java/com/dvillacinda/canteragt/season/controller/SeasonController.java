@@ -30,6 +30,7 @@ public class SeasonController {
     private final SeasonService seasonService;
 
     @PostMapping("/create-season")
+    @PreAuthorize("hasRole('SYSTEM_ADMIN')")
     public ResponseEntity<ApiResponse<SeasonResponse>> createSeason(
             @RequestBody @Validated SeasonCreateRequest request) {
         log.info("Create season");
