@@ -26,7 +26,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * Positions are a catalog seeded by Flyway (V6) and referenced by evaluation templates through their code:
+ * Positions are a catalog seeded by Flyway (V6) and referenced by metric thresholds through their code:
  * any authenticated user can read it, only SYSTEM_ADMIN can change it.
  */
 @RestController

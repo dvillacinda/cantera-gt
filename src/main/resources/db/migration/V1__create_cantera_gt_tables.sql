@@ -169,8 +169,6 @@ CREATE TABLE "session_staff" (
 CREATE TABLE "evaluation_templates" (
   "template_id" UUID DEFAULT uuid_generate_v7() PRIMARY KEY,
   "name" varchar(150) NOT NULL,
-  "category_id" uuid,
-  "position_code" varchar(30),
   "version" int NOT NULL,
   "status" varchar(20) NOT NULL,
   "description" varchar(255),
@@ -294,7 +292,7 @@ CREATE UNIQUE INDEX ON "session_staff" ("session_id", "coach_id");
 
 CREATE INDEX ON "session_staff" ("coach_id", "session_id");
 
-CREATE INDEX ON "evaluation_templates" ("category_id", "position_code", "status");
+CREATE INDEX ON "evaluation_templates" ("status");
 
 CREATE UNIQUE INDEX ON "evaluation_templates" ("name", "version");
 
@@ -382,11 +380,11 @@ COMMENT ON TABLE "evaluation_templates" IS 'MVP templates are system-defined. DT
 
 COMMENT ON COLUMN "evaluation_templates"."status" IS 'DRAFT, ACTIVE, RETIRED';
 
-COMMENT ON COLUMN "evaluation_criteria"."dimension_code" IS 'TECHNICAL, PHYSICAL, TACTICAL, MENTAL';
+COMMENT ON COLUMN "evaluation_criteria"."dimension_code" IS 'TECHNICAL, TACTICAL, PHYSICAL, PSYCHOLOGICAL, SOCIAL';
 
 COMMENT ON TABLE "evaluations" IS 'Stores the template/version used so historical evaluations remain stable.';
 
-COMMENT ON COLUMN "evaluations"."status" IS 'DRAFT, COMPLETED, ARCHIVED';
+COMMENT ON COLUMN "evaluations"."status" IS 'DRAFT, COMPLETED, VOIDED, ARCHIVED';
 
 COMMENT ON TABLE "player_statistics" IS 'MVP keeps statistics simple. Future event-level match statistics can be added without breaking the core model.';
 
@@ -401,8 +399,6 @@ ALTER TABLE "players" ADD FOREIGN KEY ("principal_position_id") REFERENCES "posi
 ALTER TABLE "player_secondary_positions" ADD FOREIGN KEY ("player_id") REFERENCES "players" ("player_id") DEFERRABLE INITIALLY IMMEDIATE;
 
 ALTER TABLE "player_secondary_positions" ADD FOREIGN KEY ("position_id") REFERENCES "positions" ("position_id") DEFERRABLE INITIALLY IMMEDIATE;
-
-ALTER TABLE "evaluation_templates" ADD FOREIGN KEY ("position_code") REFERENCES "positions" ("code") DEFERRABLE INITIALLY IMMEDIATE;
 
 ALTER TABLE "academy_locations" ADD FOREIGN KEY ("academy_id") REFERENCES "academies" ("academy_id") DEFERRABLE INITIALLY IMMEDIATE;
 
@@ -435,8 +431,6 @@ ALTER TABLE "session_players" ADD FOREIGN KEY ("player_id") REFERENCES "players"
 ALTER TABLE "session_staff" ADD FOREIGN KEY ("session_id") REFERENCES "training_sessions" ("session_id") DEFERRABLE INITIALLY IMMEDIATE;
 
 ALTER TABLE "session_staff" ADD FOREIGN KEY ("coach_id") REFERENCES "coaches" ("coach_id") DEFERRABLE INITIALLY IMMEDIATE;
-
-ALTER TABLE "evaluation_templates" ADD FOREIGN KEY ("category_id") REFERENCES "categories" ("category_id") DEFERRABLE INITIALLY IMMEDIATE;
 
 ALTER TABLE "evaluation_criteria" ADD FOREIGN KEY ("template_id") REFERENCES "evaluation_templates" ("template_id") DEFERRABLE INITIALLY IMMEDIATE;
 
