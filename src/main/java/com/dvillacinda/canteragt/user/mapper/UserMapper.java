@@ -30,4 +30,16 @@ public class UserMapper {
                 .status(user.status())
                 .build();
     }
+
+    public UserEntity toEntity(UserResponse response){
+        return UserEntity.builder()
+                .userId(response.userId())
+                .keycloakId(response.keycloakId())
+                .email(response.email())
+                .username(response.username())
+                .firstName(response.firstName())
+                .lastName(response.lastName())
+                .status(response.status())
+                .build();
+    }
 }

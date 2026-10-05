@@ -22,6 +22,7 @@ import com.dvillacinda.canteragt.auth.dto.AuthenticatedUser;
 import com.dvillacinda.canteragt.auth.dto.CurrentUserResponse;
 import com.dvillacinda.canteragt.coach.entity.CoachEntity;
 import com.dvillacinda.canteragt.coach.repository.CoachRepository;
+import com.dvillacinda.canteragt.academy_admin.repository.AcademyAdminRepository;
 import com.dvillacinda.canteragt.player.entity.PlayerEntity;
 import com.dvillacinda.canteragt.player.enums.Sex;
 import com.dvillacinda.canteragt.player.repository.PlayerRepository;
@@ -45,6 +46,8 @@ class CurrentUserServiceTest {
     private PlayerRepository playerRepository;
     @Mock
     private CoachRepository coachRepository;
+    @Mock
+    private AcademyAdminRepository academyAdminRepository;
     @Spy
     private UserMapper userMapper = new UserMapper();
     @Spy

@@ -14,6 +14,7 @@ import com.dvillacinda.canteragt.academy.dto.AcademyResponse;
 import com.dvillacinda.canteragt.academy.dto.AcademyUpdateRequest;
 import com.dvillacinda.canteragt.academy.service.AcademyService;
 import com.dvillacinda.canteragt.shared.dto.ApiResponse;
+import com.dvillacinda.canteragt.shared.enums.Status;
 
 
 import jakarta.validation.Valid;
@@ -64,6 +65,14 @@ public class AcademyController {
         log.info("Updating academy with id {}", academyId);
         AcademyResponse response = academyService.updateAcademy(academyId, request);
         return ResponseEntity.ok(new ApiResponse<>(true, HttpStatus.OK, "Academy updated successfully", response));
+    }
+
+    @PatchMapping("/update-academy-status-by-id/{academyId}/{status}")
+    public ResponseEntity<ApiResponse<AcademyResponse>> updateAcademyStatusById(@PathVariable UUID academyId,
+            @PathVariable Status status) {
+        log.info("Updating academy status with id {}", academyId);
+        AcademyResponse response = academyService.updateAcademyStatusById(academyId, status);
+        return ResponseEntity.ok(new ApiResponse<>(true, HttpStatus.OK, "Academy status updated successfully", response));
     }
 
 }

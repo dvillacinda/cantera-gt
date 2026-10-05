@@ -1,6 +1,6 @@
 package com.dvillacinda.canteragt.academy.dto;
 
-import com.dvillacinda.canteragt.academy.enums.Status;
+import com.dvillacinda.canteragt.shared.enums.Status;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;

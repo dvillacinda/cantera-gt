@@ -1,17 +1,17 @@
-package com.dvillacinda.canteragt.academy.dto;
+package com.dvillacinda.canteragt.academy_admin.dto;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
 
 import com.dvillacinda.canteragt.shared.enums.Status;
 
-
-public record AcademyResponse(
+public record AcademyAdminResponse(
+    UUID academyAdminId,
     UUID academyId,
-    String name,
+    UUID userId,
     Status status,
     LocalDateTime createdAt,
     LocalDateTime updatedAt
 ) {
-
+    
 }

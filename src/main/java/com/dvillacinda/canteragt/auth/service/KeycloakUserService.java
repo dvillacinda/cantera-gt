@@ -122,6 +122,18 @@ public class KeycloakUserService {
                 .toBodilessEntity();
     }
 
+    public boolean hasRealmRole(String keycloakId, String roleName) {
+        List<?> roles = restClient.get()
+                .uri(adminRealmUrl() + "/users/{id}/role-mappings/realm", keycloakId)
+                .headers(headers -> headers.setBearerAuth(accessToken()))
+                .retrieve()
+                .body(List.class);
+        return roles != null && roles.stream()
+                .filter(Map.class::isInstance)
+                .map(Map.class::cast)
+                .anyMatch(role -> roleName.equals(role.get("name")));
+    }
+
     private String accessToken() {
         MultiValueMap<String, String> form = new LinkedMultiValueMap<>();
         form.add("grant_type", "client_credentials");

@@ -13,6 +13,7 @@ import com.dvillacinda.canteragt.academy.dto.AcademyUpdateRequest;
 import com.dvillacinda.canteragt.academy.entity.AcademyEntity;
 import com.dvillacinda.canteragt.academy.mapper.AcademyMapper;
 import com.dvillacinda.canteragt.academy.repository.AcademyRepository;
+import com.dvillacinda.canteragt.shared.enums.Status;
 import com.dvillacinda.canteragt.shared.exception.NotFoundException;
 
 import lombok.RequiredArgsConstructor;
@@ -58,10 +59,15 @@ public class AcademyService {
 
         if (academyRequest.name() != null)
             academy.setName(academyRequest.name());
-        if (academyRequest.status() != null)
-            academy.setStatus(academyRequest.status());
         academyRepository.save(academy);
         return academyMapper.toResponse(academy);
+    }
+
+    public AcademyResponse updateAcademyStatusById(UUID academyId, Status status) {
+        AcademyEntity academy = academyRepository.findById(academyId)
+                .orElseThrow(() -> new NotFoundException("Academy not found with id " + academyId));
+        academy.setStatus(status);
+        return academyMapper.toResponse(academyRepository.save(academy));
     }
 
 }

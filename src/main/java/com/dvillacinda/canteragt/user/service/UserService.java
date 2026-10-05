@@ -2,6 +2,7 @@ package com.dvillacinda.canteragt.user.service;
 
 import java.util.UUID;
 
+import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -14,6 +15,8 @@ import com.dvillacinda.canteragt.user.entity.UserEntity;
 import com.dvillacinda.canteragt.user.mapper.UserMapper;
 import com.dvillacinda.canteragt.user.repository.UserRepository;
 import com.dvillacinda.canteragt.auth.service.KeycloakUserService;
+import com.dvillacinda.canteragt.academy_admin.service.AcademyAccessService;
+import com.dvillacinda.canteragt.academy_admin.repository.AcademyAdminRepository;
 import com.dvillacinda.canteragt.shared.enums.UserStatus;
 import com.dvillacinda.canteragt.shared.exception.ConflictException;
 import com.dvillacinda.canteragt.shared.exception.NotFoundException;
@@ -28,6 +31,8 @@ public class UserService {
     private final CoachRepository coachRepository;
     private final PlayerRepository playerRepository;
     private final KeycloakUserService keycloakUserService;
+    private final AcademyAccessService academyAccessService;
+    private final AcademyAdminRepository academyAdminRepository;
 
     @Transactional
     public UserEntity createUserEntity(UserCreateRequest user, String firstName, String lastName) {
@@ -53,10 +58,17 @@ public class UserService {
         keycloakUserService.assignRealmRole(keycloakId, role);
     }
 
+    public boolean hasKeycloakRealmRole(String keycloakId, String role) {
+        return keycloakUserService.hasRealmRole(keycloakId, role);
+    }
+
     @Transactional
     public void deleteUserById(UUID userId) {
         UserEntity user = userRepository.findById(userId)
                 .orElseThrow(() -> new NotFoundException("User with id " + userId + " not found"));
+        if (academyAdminRepository.existsByUser_UserId(userId)) {
+            throw new ConflictException("Remove the user's academy administration assignments before deleting the user");
+        }
         if (coachRepository.existsByUser_UserId(userId)) {
             throw new ConflictException("User with id " + userId + " is assigned to a coach, delete the coach instead");
         }
@@ -74,8 +86,15 @@ public class UserService {
                 request.email() != null ? request.email() : existing.getEmail(),
                 request.firstName() != null ? request.firstName() : existing.getFirstName(),
                 request.lastName() != null ? request.lastName() : existing.getLastName(),
-                request.status() != null ? request.status() : existing.getStatus());
+                existing.getStatus());
         return userMapper.toResponse(existing);
+    }
+
+    @Transactional
+    public UserResponse updateUser(UUID userId, UserUpdateRequest request, Authentication authentication,
+            UUID academyId) {
+        academyAccessService.requireUserBelongsToAcademy(authentication, academyId, userId);
+        return updateUser(userId, request);
     }
 
     @Transactional
@@ -89,9 +108,16 @@ public class UserService {
 
     /** Disables the Keycloak account when the status does not allow logging in (INACTIVE, LOCKED). */
     @Transactional
-    public void updateStatus(UUID userId, UserStatus status) {
+    public UserResponse updateStatus(UUID userId, UserStatus status) {
         UserEntity user = findById(userId);
         synchronize(user, user.getEmail(), user.getFirstName(), user.getLastName(), status);
+        return userMapper.toResponse(user);
+    }
+
+    @Transactional
+    public UserResponse updateStatus(UUID userId, UserStatus status, Authentication authentication, UUID academyId) {
+        academyAccessService.requireUserBelongsToAcademy(authentication, academyId, userId);
+        return updateStatus(userId, status);
     }
 
     private UserEntity findById(UUID userId) {
@@ -128,5 +154,17 @@ public class UserService {
         UserEntity user = userRepository.findById(userId)
                 .orElseThrow(() -> new NotFoundException("User with id " + userId + " not found"));
         return userMapper.toResponse(user);
+    }
+
+    @Transactional(readOnly = true)
+    public UserResponse getUserById(UUID userId, Authentication authentication, UUID academyId) {
+        academyAccessService.requireUserBelongsToAcademy(authentication, academyId, userId);
+        return getUserById(userId);
+    }
+
+    @Transactional
+    public void deleteUserById(UUID userId, Authentication authentication, UUID academyId) {
+        academyAccessService.requireUserBelongsToAcademy(authentication, academyId, userId);
+        deleteUserById(userId);
     }
 }

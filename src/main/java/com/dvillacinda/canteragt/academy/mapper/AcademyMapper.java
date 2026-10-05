@@ -27,4 +27,12 @@ public class AcademyMapper {
             .build();
     }
 
+    public AcademyEntity toEntity(AcademyResponse academyResponse) {
+        return AcademyEntity.builder()
+            .academyId(academyResponse.academyId())
+            .name(academyResponse.name())
+            .status(academyResponse.status())
+            .build();
+    }
+
 }

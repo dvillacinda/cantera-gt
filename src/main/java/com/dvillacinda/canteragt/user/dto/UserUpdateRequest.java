@@ -1,7 +1,5 @@
 package com.dvillacinda.canteragt.user.dto;
 
-import com.dvillacinda.canteragt.shared.enums.UserStatus;
-
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
@@ -17,6 +15,5 @@ import tools.jackson.databind.annotation.JsonNaming;
 public record UserUpdateRequest(
         @Email @Pattern(regexp = "(?s).*\\S.*", message = "must not be blank") @Size(max = 254) String email,
         @Pattern(regexp = "(?s).*\\S.*", message = "must not be blank") @Size(max = 100) String firstName,
-        @Pattern(regexp = "(?s).*\\S.*", message = "must not be blank") @Size(max = 100) String lastName,
-        UserStatus status) {
+        @Pattern(regexp = "(?s).*\\S.*", message = "must not be blank") @Size(max = 100) String lastName) {
 }
