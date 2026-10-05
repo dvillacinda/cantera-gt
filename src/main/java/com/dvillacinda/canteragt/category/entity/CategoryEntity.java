@@ -44,6 +44,7 @@ public class CategoryEntity extends BaseEntity{
     private Integer minAge;
 
     @Column (name = "status", nullable = false)
+    @Enumerated (value = EnumType.STRING)
     private Status status;
 
     @Column (name = "code", nullable = false)
