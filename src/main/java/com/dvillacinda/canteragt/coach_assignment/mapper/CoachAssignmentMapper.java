@@ -2,40 +2,39 @@ package com.dvillacinda.canteragt.coach_assignment.mapper;
 
 import org.springframework.stereotype.Component;
 
-import com.dvillacinda.canteragt.academy_category.mapper.AcademyCategoryMapper;
-import com.dvillacinda.canteragt.academy_category.service.AcademyCategoryService;
-import com.dvillacinda.canteragt.coach.mapper.CoachMapper;
-import com.dvillacinda.canteragt.coach.service.CoachService;
+import com.dvillacinda.canteragt.academy_category.entity.AcademyCategoryEntity;
+import com.dvillacinda.canteragt.coach.entity.CoachEntity;
 import com.dvillacinda.canteragt.coach_assignment.dto.CoachAssignmentCreateRequest;
+import com.dvillacinda.canteragt.coach_assignment.dto.CoachAssignmentResponse;
 import com.dvillacinda.canteragt.coach_assignment.entity.CoachAssignmentEntity;
-import com.dvillacinda.canteragt.coach_role.mapper.CoachRoleMapper;
-import com.dvillacinda.canteragt.coach_role.service.CoachRoleService;
+import com.dvillacinda.canteragt.coach_role.entity.CoachRoleEntity;
 
-import lombok.RequiredArgsConstructor;
-
-@Component 
-@RequiredArgsConstructor 
+/** Pure mapping: related entities are resolved (and tenant-checked) by the service, never here. */
+@Component
 public class CoachAssignmentMapper {
-    private final CoachService coachService;
-    private final AcademyCategoryService academyCategoryService;
-    private final CoachRoleService coachRoleService;
 
-    private final CoachMapper coachMapper;
-    private final AcademyCategoryMapper academyCategoryMapper;
-    private final CoachRoleMapper coachRoleMapper;
-
-
-    public CoachAssignmentEntity toEntity(CoachAssignmentCreateRequest request) {
-        
-        var coach = coachService.getCoachById(request.coachId());
-        var academyCategory = academyCategoryService.getAcademyCategoryById(request.academyCategoryId(), null, null);
-        var coachRole = coachRoleService.getCoachRoleById(request.coachRoleId());
-        
+    public CoachAssignmentEntity toEntity(CoachAssignmentCreateRequest request, CoachEntity coach,
+            AcademyCategoryEntity academyCategory, CoachRoleEntity coachRole) {
         return CoachAssignmentEntity.builder()
-            .coach(coachMapper.toEntity(coach))
-            .academyCategory(academyCategoryMapper.toEntity(academyCategory))
-            .coachRole(coachRoleMapper.toEntity(coachRole))
-            .build();
-            
+                .coach(coach)
+                .academyCategory(academyCategory)
+                .coachRole(coachRole)
+                .startDate(request.startDate())
+                .endDate(request.endDate())
+                .status(request.status())
+                .build();
+    }
+
+    public CoachAssignmentResponse toResponse(CoachAssignmentEntity entity) {
+        return new CoachAssignmentResponse(
+                entity.getCoachAssignmentId(),
+                entity.getAcademyCategory().getAcademyCategoryId(),
+                entity.getCoach().getCoachId(),
+                entity.getCoachRole().getCoachRoleId(),
+                entity.getStartDate(),
+                entity.getEndDate(),
+                entity.getStatus(),
+                entity.getCreatedAt(),
+                entity.getUpdatedAt());
     }
 }

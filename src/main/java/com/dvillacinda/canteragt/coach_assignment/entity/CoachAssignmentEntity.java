@@ -57,10 +57,10 @@ public class CoachAssignmentEntity extends BaseEntity{
     @JoinColumn (name = "coach_role_id", referencedColumnName = "coach_role_id", nullable = false)
     private CoachRoleEntity coachRole;
 
-    @Column (name = "status", nullable = false)
+    @Column (name = "start_date", nullable = false)
     private LocalDate startDate;
-    
-    @Column (name = "status", nullable = false)
+
+    @Column (name = "end_date")
     private LocalDate endDate;
 
     @Column (name = "status", nullable = false)
