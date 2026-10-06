@@ -4,14 +4,14 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-import com.dvillacinda.canteragt.shared.enums.Status;
+import com.dvillacinda.canteragt.season.enums.SeasonStatus;
 
 public record SeasonResponse(
         UUID seasonId,
         String name,
         LocalDate startDate,
         LocalDate endDate,
-        Status status,
+        SeasonStatus status,
         LocalDateTime createdAt,
         LocalDateTime updatedAt) {
 

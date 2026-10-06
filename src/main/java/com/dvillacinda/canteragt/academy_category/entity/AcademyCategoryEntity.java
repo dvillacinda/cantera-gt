@@ -5,10 +5,10 @@ import java.util.UUID;
 import org.hibernate.annotations.UuidGenerator;
 
 import com.dvillacinda.canteragt.academy.entity.AcademyEntity;
+import com.dvillacinda.canteragt.academy_category.enums.AcademyCategoryStatus;
 import com.dvillacinda.canteragt.category.entity.CategoryEntity;
 import com.dvillacinda.canteragt.season.entity.SeasonEntity;
 import com.dvillacinda.canteragt.shared.entity.BaseEntity;
-import com.dvillacinda.canteragt.shared.enums.Status;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -53,6 +53,6 @@ public class AcademyCategoryEntity extends BaseEntity {
 
     @Enumerated (EnumType.STRING)
     @Column (name = "status", nullable = false)
-    private Status status;
+    private AcademyCategoryStatus status;
 
 }

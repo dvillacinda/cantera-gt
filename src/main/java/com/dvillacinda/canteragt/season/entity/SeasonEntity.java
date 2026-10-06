@@ -5,8 +5,8 @@ import java.util.UUID;
 
 import org.hibernate.annotations.UuidGenerator;
 
+import com.dvillacinda.canteragt.season.enums.SeasonStatus;
 import com.dvillacinda.canteragt.shared.entity.BaseEntity;
-import com.dvillacinda.canteragt.shared.enums.Status;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -40,7 +40,7 @@ public class SeasonEntity extends BaseEntity{
 
     @Column (name = "status", nullable = false)
     @Enumerated (EnumType.STRING)
-    Status status;
+    SeasonStatus status;
 
     @Column (name = "start_date", nullable = false)
     LocalDate startDate;
