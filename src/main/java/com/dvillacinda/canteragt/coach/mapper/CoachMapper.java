@@ -21,9 +21,18 @@ public class CoachMapper {
                 userMapper.toResponse(coach.getUser()));
     }
 
-    public CoachEntity toEntity(CoachCreateRequest coach, UserEntity user) {
+    public CoachEntity toEntity(CoachCreateRequest coach) {
         return CoachEntity.builder()
-                .user(user)
+                .user(userMapper.toEntity(coach.userCreateRequest(), coach.firstName(), coach.lastName()))
+                .build();
+    }
+
+    public CoachEntity toEntity(CoachResponse coach) {
+
+        var userEntity = userMapper.toEntity(coach.userResponse());
+        return CoachEntity.builder()
+                .coachId(coach.coachId())
+                .user(userEntity)
                 .build();
     }
 }

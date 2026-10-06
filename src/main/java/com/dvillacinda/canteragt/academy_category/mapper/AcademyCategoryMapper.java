@@ -21,6 +21,13 @@ public class AcademyCategoryMapper {
                 .build();
     }
 
+    public AcademyCategoryEntity toEntity(AcademyCategoryResponse response) {
+        return AcademyCategoryEntity.builder()
+                .academyCategoryId(response.academyCategoryId())
+                .status(response.status())
+                .build();
+    }
+
     public AcademyCategoryResponse toResponse(AcademyCategoryEntity entity) {
         return new AcademyCategoryResponse(
                 entity.getAcademyCategoryId(),

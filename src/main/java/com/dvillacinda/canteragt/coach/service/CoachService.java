@@ -29,7 +29,7 @@ public class CoachService {
         var user = userService.createUserEntity(coach.userCreateRequest(), coach.firstName(), coach.lastName());
         try {
             userService.assignKeycloakRole(user.getKeycloakId(), "COACH");
-            CoachEntity coachEntity = coachMapper.toEntity(coach, user);
+            CoachEntity coachEntity = coachMapper.toEntity(coach);
             CoachEntity savedCoach = coachRepository.saveAndFlush(coachEntity);
             return coachMapper.toResponse(savedCoach);
         } catch (RuntimeException failure) {
