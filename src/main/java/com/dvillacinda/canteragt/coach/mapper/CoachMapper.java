@@ -5,7 +5,6 @@ import org.springframework.stereotype.Component;
 import com.dvillacinda.canteragt.coach.dto.CoachCreateRequest;
 import com.dvillacinda.canteragt.coach.dto.CoachResponse;
 import com.dvillacinda.canteragt.coach.entity.CoachEntity;
-import com.dvillacinda.canteragt.user.entity.UserEntity;
 import com.dvillacinda.canteragt.user.mapper.UserMapper;
 
 import lombok.RequiredArgsConstructor;
