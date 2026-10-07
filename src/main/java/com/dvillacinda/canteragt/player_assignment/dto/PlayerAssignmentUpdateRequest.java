@@ -3,12 +3,13 @@ package com.dvillacinda.canteragt.player_assignment.dto;
 import java.time.LocalDate;
 import java.util.UUID;
 
-import com.dvillacinda.canteragt.player_assignment.enums.PlayerAsignmentStatus;
+import com.dvillacinda.canteragt.player_assignment.enums.PlayerAssignmentStatus;
 
-public record PlayerAsignmentResponse(
+
+public record PlayerAssignmentUpdateRequest(
         UUID playerId,
         UUID academyCategoryId,
-        PlayerAsignmentStatus status,
+        PlayerAssignmentStatus status,
         LocalDate startDate,
         LocalDate endDate) {
 

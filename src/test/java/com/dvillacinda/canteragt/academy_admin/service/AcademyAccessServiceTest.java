@@ -25,7 +25,10 @@ import org.springframework.security.oauth2.server.resource.authentication.JwtAut
 
 import com.dvillacinda.canteragt.academy_admin.repository.AcademyAdminRepository;
 import com.dvillacinda.canteragt.coach_assignment.repository.CoachAssignmentRepository;
+import com.dvillacinda.canteragt.player.entity.PlayerEntity;
+import com.dvillacinda.canteragt.player.repository.PlayerRepository;
 import com.dvillacinda.canteragt.shared.enums.Status;
+import com.dvillacinda.canteragt.shared.enums.UserStatus;
 import com.dvillacinda.canteragt.shared.exception.UnauthorizedAccessException;
 import com.dvillacinda.canteragt.user.entity.UserEntity;
 import com.dvillacinda.canteragt.user.repository.UserRepository;
@@ -42,6 +45,8 @@ class AcademyAccessServiceTest {
     private AcademyAdminRepository academyAdminRepository;
     @Mock
     private CoachAssignmentRepository coachAssignmentRepository;
+    @Mock
+    private PlayerRepository playerRepository;
 
     private AcademyAccessService academyAccessService;
 
@@ -49,7 +54,7 @@ class AcademyAccessServiceTest {
     void setUp() {
         Clock fixed = Clock.fixed(Instant.parse("2026-10-06T12:00:00Z"), ZoneOffset.UTC);
         academyAccessService = new AcademyAccessService(userRepository, academyAdminRepository,
-                coachAssignmentRepository, fixed);
+                coachAssignmentRepository, playerRepository, fixed);
     }
 
     private static Authentication token(String subject, String... roles) {
@@ -59,7 +64,8 @@ class AcademyAccessServiceTest {
     }
 
     private UserEntity registered(String keycloakId) {
-        UserEntity user = UserEntity.builder().userId(UUID.randomUUID()).keycloakId(keycloakId).build();
+        UserEntity user = UserEntity.builder().userId(UUID.randomUUID()).keycloakId(keycloakId)
+                .status(UserStatus.ACTIVE).build();
         when(userRepository.findByKeycloakId(keycloakId)).thenReturn(Optional.of(user));
         return user;
     }
@@ -134,5 +140,41 @@ class AcademyAccessServiceTest {
         assertEquals(OTHER_ACADEMY, academyAccessService
                 .requireAcademyReadAccess(token("kc-root", "ROLE_SYSTEM_ADMIN"), OTHER_ACADEMY));
         verifyNoInteractions(userRepository, academyAdminRepository, coachAssignmentRepository);
+    }
+
+    @Test
+    void playerResolvesOwnPlayerId() {
+        UserEntity user = registered("kc-player");
+        UUID playerId = UUID.randomUUID();
+        when(playerRepository.findByUser_UserId(user.getUserId()))
+                .thenReturn(Optional.of(PlayerEntity.builder().playerId(playerId).user(user).build()));
+
+        assertEquals(playerId,
+                academyAccessService.requireAuthenticatedPlayerId(token("kc-player", "ROLE_PLAYER")));
+    }
+
+    @Test
+    void nonPlayerRoleIsRejectedBeforeAnyLookup() {
+        assertThrows(UnauthorizedAccessException.class,
+                () -> academyAccessService.requireAuthenticatedPlayerId(token("kc-coach", "ROLE_COACH")));
+        verifyNoInteractions(userRepository, playerRepository);
+    }
+
+    @Test
+    void playerRoleWithoutPlayerProfileIsRejected() {
+        UserEntity user = registered("kc-player");
+        when(playerRepository.findByUser_UserId(user.getUserId())).thenReturn(Optional.empty());
+
+        assertThrows(UnauthorizedAccessException.class,
+                () -> academyAccessService.requireAuthenticatedPlayerId(token("kc-player", "ROLE_PLAYER")));
+    }
+
+    @Test
+    void lockedPlayerWithStillValidTokenIsRejected() {
+        registered("kc-player").setStatus(UserStatus.LOCKED);
+
+        assertThrows(UnauthorizedAccessException.class,
+                () -> academyAccessService.requireAuthenticatedPlayerId(token("kc-player", "ROLE_PLAYER")));
+        verifyNoInteractions(playerRepository);
     }
 }

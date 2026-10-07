@@ -7,6 +7,7 @@ import org.hibernate.annotations.UuidGenerator;
 
 import com.dvillacinda.canteragt.academy_category.entity.AcademyCategoryEntity;
 import com.dvillacinda.canteragt.player.entity.PlayerEntity;
+import com.dvillacinda.canteragt.player_assignment.enums.PlayerAssignmentStatus;
 import com.dvillacinda.canteragt.shared.entity.BaseEntity;
 
 import jakarta.persistence.Column;
@@ -32,7 +33,7 @@ import lombok.Setter;
 @AllArgsConstructor 
 @NoArgsConstructor 
 @Builder 
-public class PlayerAsignmentEntity extends BaseEntity {
+public class PlayerAssignmentEntity extends BaseEntity {
     @Id 
     @GeneratedValue 
     @UuidGenerator (style = UuidGenerator.Style.VERSION_7)
@@ -45,7 +46,7 @@ public class PlayerAsignmentEntity extends BaseEntity {
 
     @ManyToOne (fetch = FetchType.LAZY, optional = false)
     @JoinColumn (name = "academy_category_id", referencedColumnName = "academy_category_id", nullable = false)
-    private AcademyCategoryEntity academy_category;
+    private AcademyCategoryEntity academyCategory;
 
     @Column (name = "status", nullable = false)
     @Enumerated (value = EnumType.STRING)
@@ -54,7 +55,7 @@ public class PlayerAsignmentEntity extends BaseEntity {
     @Column (name = "start_date", nullable = false)
     private LocalDate startDate;
 
-    @Column (name = "end_date", nullable = false)
+    @Column (name = "end_date")
     private LocalDate endDate;
 
 

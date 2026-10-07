@@ -11,6 +11,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.dvillacinda.canteragt.academy_admin.repository.AcademyAdminRepository;
 import com.dvillacinda.canteragt.coach_assignment.repository.CoachAssignmentRepository;
+import com.dvillacinda.canteragt.player.entity.PlayerEntity;
+import com.dvillacinda.canteragt.player.repository.PlayerRepository;
 import com.dvillacinda.canteragt.shared.enums.Status;
 import com.dvillacinda.canteragt.shared.exception.NotFoundException;
 import com.dvillacinda.canteragt.shared.exception.UnauthorizedAccessException;
@@ -30,10 +32,12 @@ public class AcademyAccessService {
     private static final String SYSTEM_ADMIN = "ROLE_SYSTEM_ADMIN";
     private static final String ACADEMY_ADMIN = "ROLE_ACADEMY_ADMIN";
     private static final String COACH = "ROLE_COACH";
+    private static final String PLAYER = "ROLE_PLAYER";
 
     private final UserRepository userRepository;
     private final AcademyAdminRepository academyAdminRepository;
     private final CoachAssignmentRepository coachAssignmentRepository;
+    private final PlayerRepository playerRepository;
     private final Clock clock;
 
     /** Write access: SYSTEM_ADMIN, or ACADEMY_ADMIN with an active administration assignment. */
@@ -77,6 +81,26 @@ public class AcademyAccessService {
             return academyId;
         }
         throw new UnauthorizedAccessException("No active assignment for the selected academy");
+    }
+
+    /**
+     * Self-service access: the caller must hold the PLAYER role, be registered with an account that may
+     * still log in (access tokens outlive a Keycloak disable) and own a player profile.
+     * Returns that player's id, which is the only scope a player may read.
+     */
+    @Transactional(readOnly = true)
+    public UUID requireAuthenticatedPlayerId(Authentication authentication) {
+        requireAuthenticated(authentication);
+        if (!hasRole(authentication, PLAYER)) {
+            throw new UnauthorizedAccessException("Player role is required");
+        }
+        UserEntity user = requireRegisteredUser(authentication);
+        if (user.getStatus() == null || !user.getStatus().canLogIn()) {
+            throw new UnauthorizedAccessException("User account is not active");
+        }
+        return playerRepository.findByUser_UserId(user.getUserId())
+                .map(PlayerEntity::getPlayerId)
+                .orElseThrow(() -> new UnauthorizedAccessException("User has no player profile"));
     }
 
     @Transactional(readOnly = true)

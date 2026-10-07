@@ -1,9 +1,7 @@
 package com.dvillacinda.canteragt.player_assignment.enums;
 
-/**
- * PlayerAsignmentStatus
- */
-public enum PlayerAsignmentStatus {
+
+public enum PlayerAssignmentStatus {
 
     ACTIVE, INACTIVE, TRANSFERRED, COMPLETED
 }
