@@ -11,7 +11,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.dvillacinda.canteragt.academy_admin.repository.AcademyAdminRepository;
 import com.dvillacinda.canteragt.coach_assignment.repository.CoachAssignmentRepository;
-import com.dvillacinda.canteragt.player.entity.PlayerEntity;
 import com.dvillacinda.canteragt.player.repository.PlayerRepository;
 import com.dvillacinda.canteragt.shared.enums.Status;
 import com.dvillacinda.canteragt.shared.exception.NotFoundException;
@@ -99,7 +98,7 @@ public class AcademyAccessService {
             throw new UnauthorizedAccessException("User account is not active");
         }
         return playerRepository.findByUser_UserId(user.getUserId())
-                .map(PlayerEntity::getPlayerId)
+                .map((playerEntity) -> playerEntity.getPlayerId())
                 .orElseThrow(() -> new UnauthorizedAccessException("User has no player profile"));
     }
 
