@@ -34,8 +34,8 @@ public class EvaluationTemplateEntity {
     @Id 
     @GeneratedValue 
     @UuidGenerator (style = UuidGenerator.Style.VERSION_7)
-    @Column (name = "evaluation_template_id")
-    private UUID evaluationTemplateId;
+    @Column (name = "template_id")
+    private UUID templateId;
 
     @Column (name = "name", nullable = false, length = 100)
     private String name;
