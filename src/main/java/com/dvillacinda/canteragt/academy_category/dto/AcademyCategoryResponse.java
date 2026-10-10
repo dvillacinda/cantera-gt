@@ -5,6 +5,10 @@ import java.util.UUID;
 
 import com.dvillacinda.canteragt.academy_category.enums.AcademyCategoryStatus;
 
+import tools.jackson.databind.PropertyNamingStrategies;
+import tools.jackson.databind.annotation.JsonNaming;
+
+@JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
 public record AcademyCategoryResponse(
     UUID academyCategoryId,
     UUID academyId,

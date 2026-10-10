@@ -7,6 +7,7 @@ import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
 
+import com.dvillacinda.canteragt.academy_category.dto.AcademyCategoryUpdateRequest;
 import com.dvillacinda.canteragt.position.dto.PositionResponse;
 import com.dvillacinda.canteragt.position.enums.PositionCode;
 import com.dvillacinda.canteragt.position.enums.PositionLine;
@@ -31,5 +32,19 @@ class JsonNamingTest {
         UserUpdateRequest request = mapper.readValue("{\"first_name\":\"Ana\"}", UserUpdateRequest.class);
 
         assertEquals("Ana", request.firstName());
+    }
+
+    @Test
+    void academyCategoryRequestsAreReadAndWrittenInSnakeCase() {
+        UUID academyId = UUID.randomUUID();
+        AcademyCategoryUpdateRequest request = mapper.readValue(
+                "{\"academy_id\":\"" + academyId + "\"}", AcademyCategoryUpdateRequest.class);
+
+        assertEquals(academyId, request.academyId());
+
+        String json = mapper.writeValueAsString(new AcademyCategoryUpdateRequest(academyId, null, null, null));
+
+        assertTrue(json.contains("\"academy_id\""), json);
+        assertTrue(!json.contains("\"academyId\""), json);
     }
 }

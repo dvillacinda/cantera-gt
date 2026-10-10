@@ -6,7 +6,10 @@ import java.util.UUID;
 
 import com.dvillacinda.canteragt.coach_assignment.enums.CoachAssignmentStatus;
 
+import tools.jackson.databind.PropertyNamingStrategies;
+import tools.jackson.databind.annotation.JsonNaming;
 
+@JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
 public record CoachAssignmentResponse(
         UUID coachAssignmentId,
         UUID academyCategoryId,

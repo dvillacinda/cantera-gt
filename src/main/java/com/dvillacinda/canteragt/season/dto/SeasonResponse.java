@@ -6,6 +6,10 @@ import java.util.UUID;
 
 import com.dvillacinda.canteragt.season.enums.SeasonStatus;
 
+import tools.jackson.databind.PropertyNamingStrategies;
+import tools.jackson.databind.annotation.JsonNaming;
+
+@JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
 public record SeasonResponse(
         UUID seasonId,
         String name,
