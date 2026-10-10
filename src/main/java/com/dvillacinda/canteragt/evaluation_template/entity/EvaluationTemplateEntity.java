@@ -1,6 +1,8 @@
 package com.dvillacinda.canteragt.evaluation_template.entity;
 
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
@@ -9,14 +11,18 @@ import org.hibernate.annotations.UuidGenerator;
 import com.dvillacinda.canteragt.academy.entity.AcademyEntity;
 import com.dvillacinda.canteragt.evaluation_template.enums.EvaluationTemplateStatus;
 import com.dvillacinda.canteragt.shared.entity.BaseEntity;
+import com.dvillacinda.canteragt.template_dimension.TemplateDimension;
 
+import jakarta.persistence.CollectionTable;
 import jakarta.persistence.Column;
+import jakarta.persistence.ElementCollection;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
@@ -35,7 +41,7 @@ import lombok.Setter;
 @Setter
 @AllArgsConstructor
 @NoArgsConstructor
-@Builder 
+@Builder
 public class EvaluationTemplateEntity extends BaseEntity {
     @Id
     @GeneratedValue
@@ -52,49 +58,53 @@ public class EvaluationTemplateEntity extends BaseEntity {
     @Column(name = "version", nullable = false)
     private Integer version;
 
-    @Column (name = "status", nullable = false)
-    @Enumerated (value = EnumType.STRING)
+    @Column(name = "status", nullable = false)
+    @Enumerated(value = EnumType.STRING)
     private EvaluationTemplateStatus status;
 
-    @Column (name = "Code", nullable = false, length = 60)
+    @Column(name = "Code", nullable = false, length = 60)
     private String code;
 
-    @Column (name="objective", nullable = false, length = 255)
+    @Column(name = "objective", nullable = false, length = 255)
     private String objective;
 
-    @Column (name = "instructions", nullable = false, length = 255)
+    @Column(name = "instructions", nullable = false, length = 255)
     private String instructions;
 
-    @Column (name = "is_session_integrated", nullable = false)
+    @Column(name = "is_session_integrated", nullable = false)
     private Boolean isSessionIntegrated;
 
-    @Column (name = "group_size_min", nullable = false)
+    @Column(name = "group_size_min", nullable = false)
     private Integer groupSizeMin;
 
-    @Column (name = "group_size_max", nullable = false)
+    @Column(name = "group_size_max", nullable = false)
     private Integer groupSizeMax;
 
-    @Column (name = "frequency_min_days", nullable = false)
+    @Column(name = "frequency_min_days", nullable = false)
     private Integer frequencyMinDays;
 
-    @Column (name = "frequency_max_days", nullable = false)
+    @Column(name = "frequency_max_days", nullable = false)
     private Integer frequencyMaxDays;
-    
-    @Column (name = "validity_days", nullable = false)
+
+    @Column(name = "validity_days", nullable = false)
     private Integer validityDays;
 
-    @Column (name = "score_aggregation", nullable = false)
+    @Column(name = "score_aggregation", nullable = false)
     private String scoreAggregation;
 
-    @Column (name = "is_official", nullable = false)
+    @Column(name = "is_official", nullable = false)
     private Boolean isOfficial;
 
-    @ManyToOne (fetch = FetchType.LAZY, optional = false)
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
     private AcademyEntity academy;
 
     @Builder.Default
     @OneToMany(mappedBy = "parentTemplate")
     private Set<EvaluationTemplateEntity> childTemplates = new HashSet<>();
 
+    @ElementCollection
+    @Builder.Default
+    @CollectionTable (name = "template_dimensions", joinColumns = @JoinColumn(name = "template_id"))
+    private List<TemplateDimension> dimensions = new ArrayList<>();
 
 }

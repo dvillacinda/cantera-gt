@@ -32,6 +32,7 @@ public class EvaluationTemplateMapper {
                 entity.getChildTemplates().stream().map(child -> child.getTemplateId())
                         .collect(Collectors.toCollection(LinkedHashSet::new)),
                 entity.getCreatedAt(),
-                entity.getUpdatedAt());
+                entity.getUpdatedAt(),
+                entity.getDimensions());
     }
 }
