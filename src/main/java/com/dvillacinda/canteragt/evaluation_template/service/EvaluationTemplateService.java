@@ -26,6 +26,7 @@ public class EvaluationTemplateService {
 
     }
 
+
     @Transactional (readOnly = true)
     public List<EvaluationTemplateResponse> getAllEvaluationTemplates() {
         var all_templates = evaluationTemplateRepository.findAll();
