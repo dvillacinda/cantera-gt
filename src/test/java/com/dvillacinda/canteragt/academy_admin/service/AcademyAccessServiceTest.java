@@ -3,6 +3,7 @@ package com.dvillacinda.canteragt.academy_admin.service;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.time.Clock;
@@ -25,8 +26,10 @@ import org.springframework.security.oauth2.server.resource.authentication.JwtAut
 
 import com.dvillacinda.canteragt.academy_admin.repository.AcademyAdminRepository;
 import com.dvillacinda.canteragt.coach_assignment.repository.CoachAssignmentRepository;
+import com.dvillacinda.canteragt.coach.repository.CoachRepository;
 import com.dvillacinda.canteragt.player.entity.PlayerEntity;
 import com.dvillacinda.canteragt.player.repository.PlayerRepository;
+import com.dvillacinda.canteragt.player_assignment.repository.PlayerAssignmentRepository;
 import com.dvillacinda.canteragt.shared.enums.Status;
 import com.dvillacinda.canteragt.shared.enums.UserStatus;
 import com.dvillacinda.canteragt.shared.exception.UnauthorizedAccessException;
@@ -47,6 +50,10 @@ class AcademyAccessServiceTest {
     private CoachAssignmentRepository coachAssignmentRepository;
     @Mock
     private PlayerRepository playerRepository;
+    @Mock
+    private PlayerAssignmentRepository playerAssignmentRepository;
+    @Mock
+    private CoachRepository coachRepository;
 
     private AcademyAccessService academyAccessService;
 
@@ -54,7 +61,7 @@ class AcademyAccessServiceTest {
     void setUp() {
         Clock fixed = Clock.fixed(Instant.parse("2026-10-06T12:00:00Z"), ZoneOffset.UTC);
         academyAccessService = new AcademyAccessService(userRepository, academyAdminRepository,
-                coachAssignmentRepository, playerRepository, fixed);
+                coachAssignmentRepository, playerRepository, playerAssignmentRepository, coachRepository, fixed);
     }
 
     private static Authentication token(String subject, String... roles) {
@@ -167,6 +174,37 @@ class AcademyAccessServiceTest {
 
         assertThrows(UnauthorizedAccessException.class,
                 () -> academyAccessService.requireAuthenticatedPlayerId(token("kc-player", "ROLE_PLAYER")));
+    }
+
+    @Test
+    void playerBelongsToAcademyThroughActivePlayerAssignmentOnly() {
+        UserEntity admin = registered("kc-admin");
+        when(academyAdminRepository.existsByUser_UserIdAndAcademy_AcademyIdAndStatus(
+                admin.getUserId(), OWN_ACADEMY, Status.ACTIVE)).thenReturn(true);
+        when(playerRepository.findByUser_UserId(admin.getUserId())).thenReturn(Optional.of(PlayerEntity.builder()
+                .playerId(UUID.randomUUID()).user(admin).build()));
+        when(playerAssignmentRepository.existsActiveAssignmentInAcademy(admin.getUserId(), OWN_ACADEMY, TODAY))
+                .thenReturn(true);
+
+        academyAccessService.requireUserBelongsToAcademy(
+                token("kc-admin", "ROLE_ACADEMY_ADMIN"), OWN_ACADEMY, admin.getUserId());
+
+        verify(playerAssignmentRepository).existsActiveAssignmentInAcademy(admin.getUserId(), OWN_ACADEMY, TODAY);
+    }
+
+    @Test
+    void adminAssignmentDoesNotImplyPlayerBelongsToAcademy() {
+        UserEntity admin = registered("kc-admin");
+        when(academyAdminRepository.existsByUser_UserIdAndAcademy_AcademyIdAndStatus(
+                admin.getUserId(), OWN_ACADEMY, Status.ACTIVE)).thenReturn(true);
+        when(playerRepository.findByUser_UserId(admin.getUserId())).thenReturn(Optional.of(PlayerEntity.builder()
+                .playerId(UUID.randomUUID()).user(admin).build()));
+        when(playerAssignmentRepository.existsActiveAssignmentInAcademy(admin.getUserId(), OWN_ACADEMY, TODAY))
+                .thenReturn(false);
+
+        assertThrows(com.dvillacinda.canteragt.shared.exception.NotFoundException.class,
+                () -> academyAccessService.requireUserBelongsToAcademy(
+                        token("kc-admin", "ROLE_ACADEMY_ADMIN"), OWN_ACADEMY, admin.getUserId()));
     }
 
     @Test

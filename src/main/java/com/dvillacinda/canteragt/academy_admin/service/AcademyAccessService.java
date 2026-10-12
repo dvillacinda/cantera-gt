@@ -11,7 +11,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.dvillacinda.canteragt.academy_admin.repository.AcademyAdminRepository;
 import com.dvillacinda.canteragt.coach_assignment.repository.CoachAssignmentRepository;
+import com.dvillacinda.canteragt.coach.repository.CoachRepository;
 import com.dvillacinda.canteragt.player.repository.PlayerRepository;
+import com.dvillacinda.canteragt.player_assignment.repository.PlayerAssignmentRepository;
 import com.dvillacinda.canteragt.shared.enums.Status;
 import com.dvillacinda.canteragt.shared.exception.NotFoundException;
 import com.dvillacinda.canteragt.shared.exception.UnauthorizedAccessException;
@@ -37,6 +39,8 @@ public class AcademyAccessService {
     private final AcademyAdminRepository academyAdminRepository;
     private final CoachAssignmentRepository coachAssignmentRepository;
     private final PlayerRepository playerRepository;
+    private final PlayerAssignmentRepository playerAssignmentRepository;
+    private final CoachRepository coachRepository;
     private final Clock clock;
 
     /** Write access: SYSTEM_ADMIN, or ACADEMY_ADMIN with an active administration assignment. */
@@ -108,10 +112,17 @@ public class AcademyAccessService {
         if (hasRole(authentication, SYSTEM_ADMIN)) {
             return;
         }
-        var activeAssignments = academyAdminRepository.findByUser_UserIdAndStatus(targetUserId, Status.ACTIVE);
-        if (activeAssignments.size() != 1
-                || !activeAssignments.getFirst().getAcademy().getAcademyId().equals(academyId)) {
-            // User-to-player/coach academy membership is not modeled yet. Fail closed until it exists.
+        LocalDate today = LocalDate.now(clock);
+        // Resolve the target's actual profile type from persisted relationships. Caller roles describe
+        // the authorizing actor and must never be used to infer the target user's academy membership.
+        boolean belongs = (playerRepository.findByUser_UserId(targetUserId).isPresent()
+                && playerAssignmentRepository.existsActiveAssignmentInAcademy(targetUserId, academyId, today))
+                || (coachRepository.findByUser_UserId(targetUserId).isPresent()
+                        && coachAssignmentRepository.existsActiveAssignmentForUserInAcademy(
+                                targetUserId, academyId, today))
+                || academyAdminRepository.existsByUser_UserIdAndAcademy_AcademyIdAndStatus(
+                        targetUserId, academyId, Status.ACTIVE);
+        if (!belongs) {
             throw new NotFoundException("User not found in the selected academy");
         }
     }

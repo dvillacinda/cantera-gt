@@ -3,8 +3,11 @@ package com.dvillacinda.canteragt.player_assignment.repository;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.time.LocalDate;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import com.dvillacinda.canteragt.player_assignment.entity.PlayerAssignmentEntity;
 import com.dvillacinda.canteragt.player_assignment.enums.PlayerAssignmentStatus;
@@ -27,4 +30,15 @@ public interface PlayerAssignmentRepository extends JpaRepository<PlayerAssignme
 
     boolean existsByPlayer_PlayerIdAndAcademyCategory_AcademyCategoryIdAndStatus(UUID playerId,
             UUID academyCategoryId, PlayerAssignmentStatus status);
+
+    @Query("""
+            select count(pa) > 0 from PlayerAssignmentEntity pa
+            where pa.player.user.userId = :userId
+              and pa.academyCategory.academy.academyId = :academyId
+              and pa.status = com.dvillacinda.canteragt.player_assignment.enums.PlayerAssignmentStatus.ACTIVE
+              and pa.startDate <= :today
+              and (pa.endDate is null or pa.endDate >= :today)
+            """)
+    boolean existsActiveAssignmentInAcademy(@Param("userId") UUID userId,
+            @Param("academyId") UUID academyId, @Param("today") LocalDate today);
 }
