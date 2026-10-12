@@ -10,6 +10,7 @@ import com.dvillacinda.canteragt.evaluation_template.dto.EvaluationTemplateRespo
 import com.dvillacinda.canteragt.evaluation_template.maper.EvaluationTemplateMapper;
 import com.dvillacinda.canteragt.evaluation_template.repository.EvaluationTemplateRepository;
 import com.dvillacinda.canteragt.shared.exception.NotFoundException;
+import com.dvillacinda.canteragt.evaluation_template.enums.EvaluationTemplateStatus;
 
 import lombok.RequiredArgsConstructor;
 
@@ -21,7 +22,8 @@ public class EvaluationTemplateService {
     private final EvaluationTemplateMapper evaluationTemplateMapper;
     @Transactional (readOnly = true)
     public EvaluationTemplateResponse getEvaluationTemplateById(UUID templateId) {
-        return evaluationTemplateMapper.toResponse(evaluationTemplateRepository.findById(templateId)
+        return evaluationTemplateMapper.toResponse(evaluationTemplateRepository
+                .findByTemplateIdAndIsOfficialTrueAndStatus(templateId, EvaluationTemplateStatus.ACTIVE)
                 .orElseThrow(() -> new NotFoundException("Templet with id: " + templateId + " not founded")));
 
     }
@@ -29,7 +31,7 @@ public class EvaluationTemplateService {
 
     @Transactional (readOnly = true)
     public List<EvaluationTemplateResponse> getAllEvaluationTemplates() {
-        var all_templates = evaluationTemplateRepository.findAll();
+        var all_templates = evaluationTemplateRepository.findByIsOfficialTrueAndStatus(EvaluationTemplateStatus.ACTIVE);
         return all_templates.stream().map(evaluationTemplateMapper::toResponse).toList();
     }
 

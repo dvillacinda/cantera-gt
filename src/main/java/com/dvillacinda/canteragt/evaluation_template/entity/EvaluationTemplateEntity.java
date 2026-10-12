@@ -62,13 +62,13 @@ public class EvaluationTemplateEntity extends BaseEntity {
     @Enumerated(value = EnumType.STRING)
     private EvaluationTemplateStatus status;
 
-    @Column(name = "Code", nullable = false, length = 60)
+    @Column(name = "code", nullable = false, length = 60)
     private String code;
 
     @Column(name = "objective", nullable = false, length = 255)
     private String objective;
 
-    @Column(name = "instructions", nullable = false, length = 255)
+    @Column(name = "instructions", nullable = false, columnDefinition = "text")
     private String instructions;
 
     @Column(name = "is_session_integrated", nullable = false)
@@ -95,8 +95,13 @@ public class EvaluationTemplateEntity extends BaseEntity {
     @Column(name = "is_official", nullable = false)
     private Boolean isOfficial;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "owner_academy_id", referencedColumnName = "academy_id")
     private AcademyEntity academy;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "parent_template_id", referencedColumnName = "template_id")
+    private EvaluationTemplateEntity parentTemplate;
 
     @Builder.Default
     @OneToMany(mappedBy = "parentTemplate")

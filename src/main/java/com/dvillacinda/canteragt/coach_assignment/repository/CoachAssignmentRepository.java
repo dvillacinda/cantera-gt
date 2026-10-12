@@ -45,4 +45,14 @@ public interface CoachAssignmentRepository extends JpaRepository<CoachAssignment
             """)
     boolean existsActiveAssignmentForUserInAcademy(@Param("userId") UUID userId,
             @Param("academyId") UUID academyId, @Param("today") LocalDate today);
+
+    @Query("""
+            select count(ca) > 0 from CoachAssignmentEntity ca
+            where ca.coach.coachId = :coachId
+              and ca.academyCategory.academyCategoryId = :categoryId
+              and ca.status = com.dvillacinda.canteragt.coach_assignment.enums.CoachAssignmentStatus.ACTIVE
+              and ca.startDate <= :today and (ca.endDate is null or ca.endDate >= :today)
+            """)
+    boolean existsCurrentAssignmentForCategory(@Param("coachId") UUID coachId,
+            @Param("categoryId") UUID categoryId, @Param("today") LocalDate today);
 }

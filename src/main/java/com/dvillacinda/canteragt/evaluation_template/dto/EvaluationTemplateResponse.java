@@ -32,7 +32,8 @@ public record EvaluationTemplateResponse(
     Set<UUID> childTemplateIds, 
     LocalDateTime createdAt,
     LocalDateTime updatedAt,
-    List<TemplateDimension> templateDimensions
+    List<TemplateDimension> templateDimensions,
+    List<EvaluationCriterionResponse> criteria
 ) {
     
 }

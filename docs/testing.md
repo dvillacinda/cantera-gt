@@ -3,13 +3,15 @@
 Run the focused HTTP authorization and Keycloak compensation tests from the repository root:
 
 ```powershell
-mvn "-Dtest=EvaluationTemplateSecurityHttpTest,AcademyAccessServiceTest,UserServiceTest" test
+mvn "-Dtest=EvaluationTemplateSecurityHttpTest,EvaluationServiceTest,AcademyAccessServiceTest,UserServiceTest" test
 ```
 
 `EvaluationTemplateSecurityHttpTest` sends requests through MockMvc, Spring Security's servlet filter chain,
 and the evaluation template controller. It covers missing and invalid bearer tokens, the ACADEMY_ADMIN and
 COACH roles, and denial of PLAYER. The service is mocked so these tests focus on authentication and method
 authorization.
+
+`EvaluationServiceTest` verifies denial across academy scope and rejects stale template versions before persistence.
 
 `UserServiceTest` verifies the Keycloak compensation path when the database insert fails, and verifies the
 reverse synchronization path when a database update fails. The AcademyAccessService tests cover unit-level

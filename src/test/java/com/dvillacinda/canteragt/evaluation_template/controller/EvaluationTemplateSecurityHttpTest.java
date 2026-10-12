@@ -53,7 +53,7 @@ class EvaluationTemplateSecurityHttpTest {
 
     @Test
     void missingTokenIsUnauthorized() throws Exception {
-        mockMvc.perform(get("/api/v1/evaluation-templates/get-all-templates"))
+        mockMvc.perform(get("/api/v1/evaluation-templates"))
                 .andExpect(status().isUnauthorized());
     }
 
@@ -61,7 +61,7 @@ class EvaluationTemplateSecurityHttpTest {
     void invalidBearerTokenIsUnauthorized() throws Exception {
         when(jwtDecoder.decode("broken")).thenThrow(new BadJwtException("invalid token"));
 
-        mockMvc.perform(get("/api/v1/evaluation-templates/get-all-templates")
+        mockMvc.perform(get("/api/v1/evaluation-templates")
                         .header("Authorization", "Bearer broken"))
                 .andExpect(status().isUnauthorized());
         verifyNoInteractions(evaluationTemplateService);
@@ -71,10 +71,10 @@ class EvaluationTemplateSecurityHttpTest {
     void academyAdminAndCoachCanReadTemplatesButPlayerCannot() throws Exception {
         when(evaluationTemplateService.getAllEvaluationTemplates()).thenReturn(List.<EvaluationTemplateResponse>of());
 
-        mockMvc.perform(get("/api/v1/evaluation-templates/get-all-templates")
+        mockMvc.perform(get("/api/v1/evaluation-templates")
                         .with(user("admin").roles("ACADEMY_ADMIN")))
                 .andExpect(status().isOk());
-        mockMvc.perform(get("/api/v1/evaluation-templates/get-all-templates")
+        mockMvc.perform(get("/api/v1/evaluation-templates")
                         .with(user("coach").roles("COACH")))
                 .andExpect(status().isOk());
         mockMvc.perform(get("/api/v1/evaluation-templates/get-all-templates")

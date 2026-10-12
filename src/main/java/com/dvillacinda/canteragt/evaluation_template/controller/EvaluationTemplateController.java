@@ -27,7 +27,7 @@ public class EvaluationTemplateController {
 
     private final EvaluationTemplateService evaluationTemplateService;
 
-    @GetMapping("/get-all-templates")
+    @GetMapping({ "", "/get-all-templates" })
     public ResponseEntity<ApiResponse<List<EvaluationTemplateResponse>>> getAllEvaluationTemplates() {
         log.info("Getting all templates");
         var templates = evaluationTemplateService.getAllEvaluationTemplates();
@@ -35,7 +35,7 @@ public class EvaluationTemplateController {
 
     }
 
-    @GetMapping("/get-template-by-id/{templateId}")
+    @GetMapping({ "/{templateId}", "/get-template-by-id/{templateId}" })
     public ResponseEntity<ApiResponse<EvaluationTemplateResponse>> getEvaluationTemplateById(
             @PathVariable UUID templateId) {
         log.info("Getting template with id {}", templateId);
