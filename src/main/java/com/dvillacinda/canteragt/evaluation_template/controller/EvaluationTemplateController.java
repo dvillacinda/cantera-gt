@@ -21,7 +21,7 @@ import lombok.extern.slf4j.Slf4j;
 @RestController
 @RequestMapping("/api/v1/evaluation-templates")
 @RequiredArgsConstructor
-@PreAuthorize("hasRole('ACADEMY_ADMIN', 'COACH')")
+@PreAuthorize("hasAnyRole('ACADEMY_ADMIN', 'COACH')")
 @Slf4j
 public class EvaluationTemplateController {
 

@@ -179,32 +179,34 @@ class AcademyAccessServiceTest {
     @Test
     void playerBelongsToAcademyThroughActivePlayerAssignmentOnly() {
         UserEntity admin = registered("kc-admin");
+        UUID targetUserId = UUID.randomUUID();
         when(academyAdminRepository.existsByUser_UserIdAndAcademy_AcademyIdAndStatus(
                 admin.getUserId(), OWN_ACADEMY, Status.ACTIVE)).thenReturn(true);
-        when(playerRepository.findByUser_UserId(admin.getUserId())).thenReturn(Optional.of(PlayerEntity.builder()
-                .playerId(UUID.randomUUID()).user(admin).build()));
-        when(playerAssignmentRepository.existsActiveAssignmentInAcademy(admin.getUserId(), OWN_ACADEMY, TODAY))
+        when(playerRepository.findByUser_UserId(targetUserId)).thenReturn(Optional.of(PlayerEntity.builder()
+                .playerId(UUID.randomUUID()).user(UserEntity.builder().userId(targetUserId).build()).build()));
+        when(playerAssignmentRepository.existsActiveAssignmentInAcademy(targetUserId, OWN_ACADEMY, TODAY))
                 .thenReturn(true);
 
         academyAccessService.requireUserBelongsToAcademy(
-                token("kc-admin", "ROLE_ACADEMY_ADMIN"), OWN_ACADEMY, admin.getUserId());
+                token("kc-admin", "ROLE_ACADEMY_ADMIN"), OWN_ACADEMY, targetUserId);
 
-        verify(playerAssignmentRepository).existsActiveAssignmentInAcademy(admin.getUserId(), OWN_ACADEMY, TODAY);
+        verify(playerAssignmentRepository).existsActiveAssignmentInAcademy(targetUserId, OWN_ACADEMY, TODAY);
     }
 
     @Test
     void adminAssignmentDoesNotImplyPlayerBelongsToAcademy() {
         UserEntity admin = registered("kc-admin");
+        UUID targetUserId = UUID.randomUUID();
         when(academyAdminRepository.existsByUser_UserIdAndAcademy_AcademyIdAndStatus(
                 admin.getUserId(), OWN_ACADEMY, Status.ACTIVE)).thenReturn(true);
-        when(playerRepository.findByUser_UserId(admin.getUserId())).thenReturn(Optional.of(PlayerEntity.builder()
-                .playerId(UUID.randomUUID()).user(admin).build()));
-        when(playerAssignmentRepository.existsActiveAssignmentInAcademy(admin.getUserId(), OWN_ACADEMY, TODAY))
+        when(playerRepository.findByUser_UserId(targetUserId)).thenReturn(Optional.of(PlayerEntity.builder()
+                .playerId(UUID.randomUUID()).user(UserEntity.builder().userId(targetUserId).build()).build()));
+        when(playerAssignmentRepository.existsActiveAssignmentInAcademy(targetUserId, OWN_ACADEMY, TODAY))
                 .thenReturn(false);
 
         assertThrows(com.dvillacinda.canteragt.shared.exception.NotFoundException.class,
                 () -> academyAccessService.requireUserBelongsToAcademy(
-                        token("kc-admin", "ROLE_ACADEMY_ADMIN"), OWN_ACADEMY, admin.getUserId()));
+                        token("kc-admin", "ROLE_ACADEMY_ADMIN"), OWN_ACADEMY, targetUserId));
     }
 
     @Test

@@ -22,6 +22,7 @@ import com.dvillacinda.canteragt.auth.service.KeycloakUserService;
 import com.dvillacinda.canteragt.coach.repository.CoachRepository;
 import com.dvillacinda.canteragt.player.repository.PlayerRepository;
 import com.dvillacinda.canteragt.shared.enums.UserStatus;
+import com.dvillacinda.canteragt.user.dto.UserCreateRequest;
 import com.dvillacinda.canteragt.user.dto.UserUpdateRequest;
 import com.dvillacinda.canteragt.user.entity.UserEntity;
 import com.dvillacinda.canteragt.user.mapper.UserMapper;
@@ -82,5 +83,18 @@ class UserServiceTest {
         InOrder order = inOrder(keycloakUserService);
         order.verify(keycloakUserService).updateUser("kc-1", "old@example.com", "Ana", "López", false);
         order.verify(keycloakUserService).updateUser("kc-1", "old@example.com", "Ana", "López", true);
+    }
+
+    @Test
+    void remoteKeycloakUserIsDeletedWhenDatabaseInsertFails() {
+        UserCreateRequest request = new UserCreateRequest("new@example.com", "new-user", UserStatus.ACTIVE);
+        when(keycloakUserService.createUser(request, "New", "User")).thenReturn("kc-new");
+        when(userRepository.saveAndFlush(org.mockito.ArgumentMatchers.any(UserEntity.class)))
+                .thenThrow(new DataIntegrityViolationException("duplicate"));
+
+        assertThrows(DataIntegrityViolationException.class,
+                () -> userService.createUserEntity(request, "New", "User"));
+
+        verify(keycloakUserService).deleteUser("kc-new");
     }
 }
