@@ -25,6 +25,7 @@ import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 
 import com.dvillacinda.canteragt.academy_admin.repository.AcademyAdminRepository;
+import com.dvillacinda.canteragt.academy.repository.AcademyRepository;
 import com.dvillacinda.canteragt.coach_assignment.repository.CoachAssignmentRepository;
 import com.dvillacinda.canteragt.coach.repository.CoachRepository;
 import com.dvillacinda.canteragt.player.entity.PlayerEntity;
@@ -45,6 +46,8 @@ class AcademyAccessServiceTest {
     @Mock
     private UserRepository userRepository;
     @Mock
+    private AcademyRepository academyRepository;
+    @Mock
     private AcademyAdminRepository academyAdminRepository;
     @Mock
     private CoachAssignmentRepository coachAssignmentRepository;
@@ -60,7 +63,7 @@ class AcademyAccessServiceTest {
     @BeforeEach
     void setUp() {
         Clock fixed = Clock.fixed(Instant.parse("2026-10-06T12:00:00Z"), ZoneOffset.UTC);
-        academyAccessService = new AcademyAccessService(userRepository, academyAdminRepository,
+        academyAccessService = new AcademyAccessService(userRepository, academyRepository, academyAdminRepository,
                 coachAssignmentRepository, playerRepository, playerAssignmentRepository, coachRepository, fixed);
     }
 
@@ -143,10 +146,19 @@ class AcademyAccessServiceTest {
     }
 
     @Test
-    void systemAdminReadsAnyAcademyWithoutLookups() {
+    void systemAdminReadsAnExistingAcademy() {
+        when(academyRepository.existsById(OTHER_ACADEMY)).thenReturn(true);
         assertEquals(OTHER_ACADEMY, academyAccessService
                 .requireAcademyReadAccess(token("kc-root", "ROLE_SYSTEM_ADMIN"), OTHER_ACADEMY));
         verifyNoInteractions(userRepository, academyAdminRepository, coachAssignmentRepository);
+    }
+
+    @Test
+    void systemAdminCannotSelectNonexistentAcademy() {
+        when(academyRepository.existsById(OTHER_ACADEMY)).thenReturn(false);
+        assertThrows(com.dvillacinda.canteragt.shared.exception.NotFoundException.class,
+                () -> academyAccessService.requireAcademyAccess(
+                        token("kc-root", "ROLE_SYSTEM_ADMIN"), OTHER_ACADEMY));
     }
 
     @Test

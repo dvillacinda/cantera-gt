@@ -9,6 +9,7 @@ import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.dvillacinda.canteragt.academy.repository.AcademyRepository;
 import com.dvillacinda.canteragt.academy_admin.repository.AcademyAdminRepository;
 import com.dvillacinda.canteragt.coach_assignment.repository.CoachAssignmentRepository;
 import com.dvillacinda.canteragt.coach.repository.CoachRepository;
@@ -36,6 +37,7 @@ public class AcademyAccessService {
     private static final String PLAYER = "ROLE_PLAYER";
 
     private final UserRepository userRepository;
+    private final AcademyRepository academyRepository;
     private final AcademyAdminRepository academyAdminRepository;
     private final CoachAssignmentRepository coachAssignmentRepository;
     private final PlayerRepository playerRepository;
@@ -48,6 +50,7 @@ public class AcademyAccessService {
     public UUID requireAcademyAccess(Authentication authentication, UUID academyId) {
         requireAuthenticated(authentication);
         if (hasRole(authentication, SYSTEM_ADMIN)) {
+            requireExistingAcademy(academyId);
             return academyId;
         }
         if (!hasRole(authentication, ACADEMY_ADMIN)) {
@@ -67,6 +70,7 @@ public class AcademyAccessService {
     public UUID requireAcademyReadAccess(Authentication authentication, UUID academyId) {
         requireAuthenticated(authentication);
         if (hasRole(authentication, SYSTEM_ADMIN)) {
+            requireExistingAcademy(academyId);
             return academyId;
         }
         boolean isAdmin = hasRole(authentication, ACADEMY_ADMIN);
@@ -130,6 +134,12 @@ public class AcademyAccessService {
     private boolean isAcademyAdminOf(UserEntity user, UUID academyId) {
         return academyAdminRepository.existsByUser_UserIdAndAcademy_AcademyIdAndStatus(
                 user.getUserId(), academyId, Status.ACTIVE);
+    }
+
+    private void requireExistingAcademy(UUID academyId) {
+        if (!academyRepository.existsById(academyId)) {
+            throw new NotFoundException("Academy with id " + academyId + " not found");
+        }
     }
 
     private UserEntity requireRegisteredUser(Authentication authentication) {
