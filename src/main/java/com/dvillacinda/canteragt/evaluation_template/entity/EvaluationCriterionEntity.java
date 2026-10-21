@@ -60,14 +60,18 @@ public class EvaluationCriterionEntity extends BaseEntity {
     @Column(name = "better_direction", nullable = false, length = 10)
     private String betterDirection;
     @Column(name = "attempts_count")
+    @JdbcTypeCode(SqlTypes.SMALLINT)
     private Integer attemptsCount;
     @Column(name = "attempt_aggregation", nullable = false, length = 20)
     private String attemptAggregation;
     @Column(name = "min_opportunities")
+    @JdbcTypeCode(SqlTypes.SMALLINT)
     private Integer minOpportunities;
     @Column(name = "scale_min")
+    @JdbcTypeCode(SqlTypes.SMALLINT)
     private Integer scaleMin;
     @Column(name = "scale_max")
+    @JdbcTypeCode(SqlTypes.SMALLINT)
     private Integer scaleMax;
     @Column(name = "comment_required", nullable = false)
     private boolean commentRequired;

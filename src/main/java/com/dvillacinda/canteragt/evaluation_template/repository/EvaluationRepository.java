@@ -7,6 +7,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import com.dvillacinda.canteragt.evaluation_template.entity.EvaluationEntity;
 
 public interface EvaluationRepository extends JpaRepository<EvaluationEntity, UUID> {
-    @EntityGraph(attributePaths = { "academyCategory", "player", "template", "evaluator", "results", "results.criterion", "results.observations" })
+    @EntityGraph(attributePaths = { "academyCategory", "player", "template", "evaluator", "results", "results.criterion" })
     Optional<EvaluationEntity> findByEvaluationIdAndEvaluator_CoachId(UUID evaluationId, UUID evaluatorCoachId);
 }

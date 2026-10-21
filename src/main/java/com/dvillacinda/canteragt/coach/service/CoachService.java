@@ -4,10 +4,12 @@ import java.util.UUID;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.security.core.Authentication;
 
 import com.dvillacinda.canteragt.coach.dto.CoachCreateRequest;
 import com.dvillacinda.canteragt.coach.dto.CoachResponse;
 import com.dvillacinda.canteragt.coach.dto.CoachUpdateRequest;
+import com.dvillacinda.canteragt.academy_admin.service.AcademyAccessService;
 import com.dvillacinda.canteragt.coach.entity.CoachEntity;
 import com.dvillacinda.canteragt.coach.mapper.CoachMapper;
 import com.dvillacinda.canteragt.coach.repository.CoachRepository;
@@ -23,6 +25,7 @@ public class CoachService {
     private final CoachRepository coachRepository;
     private final CoachMapper coachMapper;
     private final UserService userService;
+    private final AcademyAccessService academyAccessService;
 
     @Transactional 
     public CoachResponse createCoach(CoachCreateRequest coach) {
@@ -43,7 +46,8 @@ public class CoachService {
     }
 
     @Transactional(readOnly = true) 
-    public CoachResponse getCoachById(UUID coachId) {
+    public CoachResponse getCoachById(UUID coachId, UUID academyId, Authentication authentication) {
+        academyAccessService.requireCoachAccess(authentication, academyId, coachId);
         CoachEntity coach = coachRepository.findById(coachId).orElseThrow(
             () -> new NotFoundException("Coach with id " + coachId + " not found")
         );
@@ -51,7 +55,8 @@ public class CoachService {
     }
 
     @Transactional 
-    public void deleteCoachById(UUID coachId) {
+    public void deleteCoachById(UUID coachId, UUID academyId, Authentication authentication) {
+        academyAccessService.requireCoachAccess(authentication, academyId, coachId);
         CoachEntity coach = coachRepository.findById(coachId).orElseThrow(
             () -> new NotFoundException("Coach with id " + coachId + " not found")
         );
@@ -62,7 +67,9 @@ public class CoachService {
     }
 
     @Transactional
-    public CoachResponse updateCoach(UUID coachId, CoachUpdateRequest request) {
+    public CoachResponse updateCoach(UUID coachId, CoachUpdateRequest request, UUID academyId,
+            Authentication authentication) {
+        academyAccessService.requireCoachAccess(authentication, academyId, coachId);
         CoachEntity existing = coachRepository.findById(coachId).orElseThrow(
             () -> new NotFoundException("Coach with id " + coachId + " not found")
         );
@@ -73,7 +80,9 @@ public class CoachService {
     }
 
     @Transactional 
-    public CoachResponse updateCoachStatusById(UUID coachId, UserStatus status) {
+    public CoachResponse updateCoachStatusById(UUID coachId, UserStatus status, UUID academyId,
+            Authentication authentication) {
+        academyAccessService.requireCoachAccess(authentication, academyId, coachId);
         CoachEntity existing = coachRepository.findById(coachId).orElseThrow(
             () -> new NotFoundException("Coach with id " + coachId + " not found")
         );

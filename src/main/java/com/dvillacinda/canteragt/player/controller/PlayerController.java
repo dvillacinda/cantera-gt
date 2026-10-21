@@ -11,8 +11,10 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 
 import com.dvillacinda.canteragt.player.dto.PlayerCreateRequest;
 import com.dvillacinda.canteragt.player.dto.PlayerResponse;
@@ -44,35 +46,39 @@ public class PlayerController {
 
     @PreAuthorize("hasAnyRole('ACADEMY_ADMIN', 'COACH')")
     @GetMapping("/get-player-by-id/{playerId}")
-    public ResponseEntity<ApiResponse<PlayerResponse>> getPlayerById(@PathVariable UUID playerId) {
+    public ResponseEntity<ApiResponse<PlayerResponse>> getPlayerById(@PathVariable UUID playerId,
+            @RequestHeader("X-Academy-Id") UUID academyId, Authentication authentication) {
         log.info("Getting player with id {}", playerId);
-        PlayerResponse response = playerService.getPlayerById(playerId);
+        PlayerResponse response = playerService.getPlayerById(playerId, academyId, authentication);
         return ResponseEntity.ok(new ApiResponse<>(true, HttpStatus.OK, "Player found successfully", response));
     }
 
     @PreAuthorize("hasAnyRole('ACADEMY_ADMIN', 'COACH')")
     @PatchMapping("/update-player-by-id/{playerId}")
     public ResponseEntity<ApiResponse<PlayerResponse>> updatePlayerById(@PathVariable UUID playerId,
+            @RequestHeader("X-Academy-Id") UUID academyId, Authentication authentication,
             @Valid @RequestBody PlayerUpdateRequest player) {
         log.info("Updating player with id {}", playerId);
-        PlayerResponse response = playerService.updatePlayer(playerId, player);
+        PlayerResponse response = playerService.updatePlayer(playerId, player, academyId, authentication);
         return ResponseEntity.ok(new ApiResponse<>(true, HttpStatus.OK, "Player updated successfully", response));
     }
 
     @PreAuthorize("hasRole('ACADEMY_ADMIN')")
     @DeleteMapping("/delete-player-by-id/{playerId}")
-    public ResponseEntity<ApiResponse<Void>> deletePlayerById(@PathVariable UUID playerId) {
+    public ResponseEntity<ApiResponse<Void>> deletePlayerById(@PathVariable UUID playerId,
+            @RequestHeader("X-Academy-Id") UUID academyId, Authentication authentication) {
         log.info("Deleting player with id {}", playerId);
-        playerService.deletePlayerById(playerId);
+        playerService.deletePlayerById(playerId, academyId, authentication);
         return ResponseEntity.ok(new ApiResponse<>(true, HttpStatus.OK, "Player deleted successfully", null));
     }
 
     @PreAuthorize("hasAnyRole('ACADEMY_ADMIN', 'COACH')")
     @PatchMapping("/update-player-status-by-id/{playerId}/{status}")
     public ResponseEntity<ApiResponse<PlayerResponse>> updatePlayerStatusById(@PathVariable UUID playerId,
-            @PathVariable UserStatus status) {
+            @PathVariable UserStatus status, @RequestHeader("X-Academy-Id") UUID academyId,
+            Authentication authentication) {
         log.info("Updating player status with id {}", playerId);
-        PlayerResponse response = playerService.updatePlayerStatusById(playerId, status);
+        PlayerResponse response = playerService.updatePlayerStatusById(playerId, status, academyId, authentication);
         return ResponseEntity.ok(new ApiResponse<>(true, HttpStatus.OK, "Player status updated successfully", response));
     }
 }

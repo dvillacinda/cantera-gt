@@ -7,6 +7,8 @@ import java.util.Set;
 import java.util.UUID;
 
 import org.hibernate.annotations.UuidGenerator;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import com.dvillacinda.canteragt.academy.entity.AcademyEntity;
 import com.dvillacinda.canteragt.evaluation_template.enums.EvaluationTemplateStatus;
@@ -75,18 +77,23 @@ public class EvaluationTemplateEntity extends BaseEntity {
     private Boolean isSessionIntegrated;
 
     @Column(name = "group_size_min", nullable = false)
+    @JdbcTypeCode(SqlTypes.SMALLINT)
     private Integer groupSizeMin;
 
     @Column(name = "group_size_max", nullable = false)
+    @JdbcTypeCode(SqlTypes.SMALLINT)
     private Integer groupSizeMax;
 
     @Column(name = "frequency_min_days", nullable = false)
+    @JdbcTypeCode(SqlTypes.SMALLINT)
     private Integer frequencyMinDays;
 
     @Column(name = "frequency_max_days", nullable = false)
+    @JdbcTypeCode(SqlTypes.SMALLINT)
     private Integer frequencyMaxDays;
 
     @Column(name = "validity_days", nullable = false)
+    @JdbcTypeCode(SqlTypes.SMALLINT)
     private Integer validityDays;
 
     @Column(name = "score_aggregation", nullable = false)

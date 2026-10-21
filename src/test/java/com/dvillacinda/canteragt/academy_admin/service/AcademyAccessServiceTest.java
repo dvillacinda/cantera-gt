@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.any;
 
 import java.time.Clock;
 import java.time.Instant;
@@ -26,11 +27,14 @@ import org.springframework.security.oauth2.server.resource.authentication.JwtAut
 
 import com.dvillacinda.canteragt.academy_admin.repository.AcademyAdminRepository;
 import com.dvillacinda.canteragt.academy.repository.AcademyRepository;
+import com.dvillacinda.canteragt.academy.entity.AcademyEntity;
+import com.dvillacinda.canteragt.academy_category.entity.AcademyCategoryEntity;
 import com.dvillacinda.canteragt.coach_assignment.repository.CoachAssignmentRepository;
 import com.dvillacinda.canteragt.coach.repository.CoachRepository;
 import com.dvillacinda.canteragt.player.entity.PlayerEntity;
 import com.dvillacinda.canteragt.player.repository.PlayerRepository;
 import com.dvillacinda.canteragt.player_assignment.repository.PlayerAssignmentRepository;
+import com.dvillacinda.canteragt.player_assignment.entity.PlayerAssignmentEntity;
 import com.dvillacinda.canteragt.shared.enums.Status;
 import com.dvillacinda.canteragt.shared.enums.UserStatus;
 import com.dvillacinda.canteragt.shared.exception.UnauthorizedAccessException;
@@ -159,6 +163,54 @@ class AcademyAccessServiceTest {
         assertThrows(com.dvillacinda.canteragt.shared.exception.NotFoundException.class,
                 () -> academyAccessService.requireAcademyAccess(
                         token("kc-root", "ROLE_SYSTEM_ADMIN"), OTHER_ACADEMY));
+    }
+
+    @Test
+    void coachCanReadPlayerOnlyThroughCurrentSharedCategoryAssignment() {
+        UserEntity coachUser = registered("kc-coach");
+        UUID coachId = UUID.randomUUID();
+        UUID categoryId = UUID.randomUUID();
+        AcademyCategoryEntity category = AcademyCategoryEntity.builder()
+                .academyCategoryId(categoryId)
+                .academy(AcademyEntity.builder().academyId(OWN_ACADEMY).build())
+                .build();
+        when(coachRepository.findByUser_UserId(coachUser.getUserId()))
+                .thenReturn(Optional.of(com.dvillacinda.canteragt.coach.entity.CoachEntity.builder()
+                        .coachId(coachId).user(coachUser).build()));
+        when(coachAssignmentRepository.existsActiveAssignmentInAcademy("kc-coach", OWN_ACADEMY, TODAY))
+                .thenReturn(true);
+        when(playerAssignmentRepository.findCurrentAssignments(any(), org.mockito.ArgumentMatchers.eq(TODAY)))
+                .thenReturn(java.util.List.of(PlayerAssignmentEntity.builder()
+                        .academyCategory(category).build()));
+        when(coachAssignmentRepository.existsCurrentAssignmentForCategory(coachId, categoryId, TODAY))
+                .thenReturn(true);
+
+        academyAccessService.requirePlayerAccess(token("kc-coach", "ROLE_COACH"), OWN_ACADEMY, UUID.randomUUID());
+    }
+
+    @Test
+    void coachCannotReadPlayerFromDifferentCategory() {
+        UserEntity coachUser = registered("kc-coach");
+        UUID coachId = UUID.randomUUID();
+        UUID categoryId = UUID.randomUUID();
+        AcademyCategoryEntity category = AcademyCategoryEntity.builder()
+                .academyCategoryId(categoryId)
+                .academy(AcademyEntity.builder().academyId(OWN_ACADEMY).build())
+                .build();
+        when(coachRepository.findByUser_UserId(coachUser.getUserId()))
+                .thenReturn(Optional.of(com.dvillacinda.canteragt.coach.entity.CoachEntity.builder()
+                        .coachId(coachId).user(coachUser).build()));
+        when(coachAssignmentRepository.existsActiveAssignmentInAcademy("kc-coach", OWN_ACADEMY, TODAY))
+                .thenReturn(true);
+        when(playerAssignmentRepository.findCurrentAssignments(any(), org.mockito.ArgumentMatchers.eq(TODAY)))
+                .thenReturn(java.util.List.of(PlayerAssignmentEntity.builder()
+                        .academyCategory(category).build()));
+        when(coachAssignmentRepository.existsCurrentAssignmentForCategory(coachId, categoryId, TODAY))
+                .thenReturn(false);
+
+        assertThrows(com.dvillacinda.canteragt.shared.exception.NotFoundException.class,
+                () -> academyAccessService.requirePlayerAccess(
+                        token("kc-coach", "ROLE_COACH"), OWN_ACADEMY, UUID.randomUUID()));
     }
 
     @Test

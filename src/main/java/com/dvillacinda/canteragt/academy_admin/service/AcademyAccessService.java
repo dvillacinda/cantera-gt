@@ -131,6 +131,60 @@ public class AcademyAccessService {
         }
     }
 
+    /** Resolves a player's tenant scope through current player and coach assignments. */
+    @Transactional(readOnly = true)
+    public void requirePlayerAccess(Authentication authentication, UUID academyId, UUID playerId) {
+        requireAuthenticated(authentication);
+        if (hasRole(authentication, SYSTEM_ADMIN)) {
+            requireExistingAcademy(academyId);
+            return;
+        }
+        boolean admin = hasRole(authentication, ACADEMY_ADMIN);
+        boolean coachRole = hasRole(authentication, COACH);
+        if (!admin && !coachRole) {
+            throw new UnauthorizedAccessException("Staff role is required");
+        }
+        UserEntity user = requireRegisteredUser(authentication);
+        if (user.getStatus() == null || !user.getStatus().canLogIn()) {
+            throw new UnauthorizedAccessException("User account is not active");
+        }
+        requireAcademyReadAccess(authentication, academyId);
+        LocalDate today = LocalDate.now(clock);
+        if (admin && playerAssignmentRepository.existsCurrentAssignmentInAcademy(playerId, academyId, today)) return;
+        if (coachRole) {
+            var coach = coachRepository.findByUser_UserId(user.getUserId())
+                    .orElseThrow(() -> new UnauthorizedAccessException("Authenticated user has no coach profile"));
+            boolean assigned = playerAssignmentRepository.findCurrentAssignments(playerId, today).stream()
+                    .filter(a -> academyId.equals(a.getAcademyCategory().getAcademy().getAcademyId()))
+                    .anyMatch(a -> coachAssignmentRepository.existsCurrentAssignmentForCategory(coach.getCoachId(),
+                            a.getAcademyCategory().getAcademyCategoryId(), today));
+            if (assigned) return;
+        }
+        throw new NotFoundException("Player not found in the selected academy or category");
+    }
+
+    /** Resolves a coach profile through a current assignment in the selected academy. */
+    @Transactional(readOnly = true)
+    public void requireCoachAccess(Authentication authentication, UUID academyId, UUID coachId) {
+        requireAuthenticated(authentication);
+        if (hasRole(authentication, SYSTEM_ADMIN)) {
+            requireExistingAcademy(academyId);
+            return;
+        }
+        if (!hasRole(authentication, ACADEMY_ADMIN)) {
+            throw new UnauthorizedAccessException("Academy administrator role is required");
+        }
+        UserEntity user = requireRegisteredUser(authentication);
+        if (user.getStatus() == null || !user.getStatus().canLogIn()) {
+            throw new UnauthorizedAccessException("User account is not active");
+        }
+        requireAcademyAccess(authentication, academyId);
+        if (!coachAssignmentRepository.existsCurrentAssignmentForCoachInAcademy(coachId, academyId,
+                LocalDate.now(clock))) {
+            throw new NotFoundException("Coach not found in the selected academy");
+        }
+    }
+
     private boolean isAcademyAdminOf(UserEntity user, UUID academyId) {
         return academyAdminRepository.existsByUser_UserIdAndAcademy_AcademyIdAndStatus(
                 user.getUserId(), academyId, Status.ACTIVE);

@@ -11,8 +11,10 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 
 import com.dvillacinda.canteragt.coach.dto.CoachCreateRequest;
 import com.dvillacinda.canteragt.coach.dto.CoachResponse;
@@ -45,26 +47,29 @@ public class CoachController {
 
     @DeleteMapping("/delete-coach-by-id/{coachId}")
     @PreAuthorize("hasAnyRole('ACADEMY_ADMIN' , 'SYSTEM_ADMIN')")
-    public ResponseEntity<ApiResponse<Void>> deleteCoachById(@PathVariable UUID coachId) {
+    public ResponseEntity<ApiResponse<Void>> deleteCoachById(@PathVariable UUID coachId,
+            @RequestHeader("X-Academy-Id") UUID academyId, Authentication authentication) {
         log.info("Deleting coach with id {}", coachId);
-        coachService.deleteCoachById(coachId);
+        coachService.deleteCoachById(coachId, academyId, authentication);
         return ResponseEntity.ok(new ApiResponse<>(true, HttpStatus.OK, "Coach deleted successfully", null));
     }
 
     @PreAuthorize ("hasAnyRole('ACADEMY_ADMIN', 'SYSTEM_ADMIN')")
     @PatchMapping("/update-coach-by-id/{coachId}")
     public ResponseEntity<ApiResponse<CoachResponse>> updateCoachById(@PathVariable UUID coachId,
+            @RequestHeader("X-Academy-Id") UUID academyId, Authentication authentication,
             @Valid @RequestBody CoachUpdateRequest coach) {
         log.info("Updating coach with id {}", coachId);
-        CoachResponse response = coachService.updateCoach(coachId, coach);
+        CoachResponse response = coachService.updateCoach(coachId, coach, academyId, authentication);
         return ResponseEntity.ok(new ApiResponse<>(true, HttpStatus.OK, "Coach updated successfully", response));
     }
 
     @PreAuthorize("hasAnyRole('ACADEMY_ADMIN')")
     @GetMapping("/get-coach-by-id/{coachId}")
-    public ResponseEntity<ApiResponse<CoachResponse>> getCoachById(@PathVariable UUID coachId) {
+    public ResponseEntity<ApiResponse<CoachResponse>> getCoachById(@PathVariable UUID coachId,
+            @RequestHeader("X-Academy-Id") UUID academyId, Authentication authentication) {
         log.info("Getting coach with id {}", coachId);
-        CoachResponse response = coachService.getCoachById(coachId);
+        CoachResponse response = coachService.getCoachById(coachId, academyId, authentication);
         return ResponseEntity.ok(new ApiResponse<>(true, HttpStatus.OK, "Coach found successfully", response));
     }
 
@@ -72,9 +77,10 @@ public class CoachController {
     @PatchMapping ("/update-coach-status-by-id/{coachId}/{status}")
 
     public ResponseEntity<ApiResponse<CoachResponse>> updateCoachStatusById(@PathVariable UUID coachId,
-            @PathVariable UserStatus status) {
+            @PathVariable UserStatus status, @RequestHeader("X-Academy-Id") UUID academyId,
+            Authentication authentication) {
         log.info("Updating coach status with id {}", coachId);
-        CoachResponse response = coachService.updateCoachStatusById(coachId, status);
+        CoachResponse response = coachService.updateCoachStatusById(coachId, status, academyId, authentication);
         return ResponseEntity.ok(new ApiResponse<>(true, HttpStatus.OK, "Coach status updated successfully", response));
     }
 

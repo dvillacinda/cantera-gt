@@ -7,10 +7,12 @@ import java.util.UUID;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.security.core.Authentication;
 
 import com.dvillacinda.canteragt.player.dto.PlayerCreateRequest;
 import com.dvillacinda.canteragt.player.dto.PlayerResponse;
 import com.dvillacinda.canteragt.player.dto.PlayerUpdateRequest;
+import com.dvillacinda.canteragt.academy_admin.service.AcademyAccessService;
 import com.dvillacinda.canteragt.player.entity.PlayerEntity;
 import com.dvillacinda.canteragt.player.mapper.PlayerMapper;
 import com.dvillacinda.canteragt.player.repository.PlayerRepository;
@@ -31,6 +33,7 @@ public class PlayerService {
     private final PlayerMapper playerMapper;
     private final UserService userService;
     private final PositionService positionService;
+    private final AcademyAccessService academyAccessService;
 
     public PlayerResponse createPlayer(PlayerCreateRequest request) {
         PositionEntity principalPosition = positionService.getEntityById(request.principalPositionId());
@@ -55,7 +58,8 @@ public class PlayerService {
 
     }
 
-    public void deletePlayerById(UUID playerId) {
+    public void deletePlayerById(UUID playerId, UUID academyId, Authentication authentication) {
+        academyAccessService.requirePlayerAccess(authentication, academyId, playerId);
         PlayerEntity player = playerRepository.findById(playerId).orElseThrow(
                 () -> new NotFoundException("Player with id " + playerId + " not found"));
         UUID userId = player.getUser().getUserId();
@@ -65,13 +69,16 @@ public class PlayerService {
     }
 
     @Transactional(readOnly = true)
-    public PlayerResponse getPlayerById(UUID playerId) {
+    public PlayerResponse getPlayerById(UUID playerId, UUID academyId, Authentication authentication) {
+        academyAccessService.requirePlayerAccess(authentication, academyId, playerId);
         PlayerEntity player = playerRepository.findById(playerId).orElseThrow(
                 () -> new NotFoundException("Player with id " + playerId + " not found"));
         return playerMapper.toResponse(player);
     }
 
-    public PlayerResponse updatePlayer(UUID playerId, PlayerUpdateRequest request) {
+    public PlayerResponse updatePlayer(UUID playerId, PlayerUpdateRequest request, UUID academyId,
+            Authentication authentication) {
+        academyAccessService.requirePlayerAccess(authentication, academyId, playerId);
         PlayerEntity existing = playerRepository.findById(playerId).orElseThrow(
                 () -> new NotFoundException("Player with id " + playerId + " not found"));
         PositionEntity finalPrincipal = request.principalPositionId() == null
@@ -103,7 +110,9 @@ public class PlayerService {
         }
     }
 
-    public PlayerResponse updatePlayerStatusById(UUID playerId, UserStatus status) {
+    public PlayerResponse updatePlayerStatusById(UUID playerId, UserStatus status, UUID academyId,
+            Authentication authentication) {
+        academyAccessService.requirePlayerAccess(authentication, academyId, playerId);
         PlayerEntity existing = playerRepository.findById(playerId).orElseThrow(
                 () -> new NotFoundException("Player with id " + playerId + " not found"));
         userService.updateStatus(existing.getUser().getUserId(), status);

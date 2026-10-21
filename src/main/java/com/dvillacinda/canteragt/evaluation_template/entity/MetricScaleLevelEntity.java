@@ -4,6 +4,8 @@ import java.math.BigDecimal;
 import java.util.UUID;
 
 import org.hibernate.annotations.UuidGenerator;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -32,6 +34,7 @@ public class MetricScaleLevelEntity {
     @JoinColumn(name = "criterion_id", nullable = false)
     private EvaluationCriterionEntity criterion;
     @Column(nullable = false)
+    @JdbcTypeCode(SqlTypes.SMALLINT)
     private Integer level;
     @Column(nullable = false, length = 80)
     private String label;

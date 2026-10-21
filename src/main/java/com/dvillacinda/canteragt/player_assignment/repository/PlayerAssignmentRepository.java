@@ -51,4 +51,26 @@ public interface PlayerAssignmentRepository extends JpaRepository<PlayerAssignme
             """)
     List<PlayerAssignmentEntity> findCurrentAssignments(@Param("playerId") UUID playerId,
             @Param("today") LocalDate today);
+
+    @Query("""
+            select count(pa) > 0 from PlayerAssignmentEntity pa
+            where pa.player.playerId = :playerId
+              and pa.academyCategory.academy.academyId = :academyId
+              and pa.status = com.dvillacinda.canteragt.player_assignment.enums.PlayerAssignmentStatus.ACTIVE
+              and pa.startDate <= :today and (pa.endDate is null or pa.endDate >= :today)
+            """)
+    boolean existsCurrentAssignmentInAcademy(@Param("playerId") UUID playerId,
+            @Param("academyId") UUID academyId, @Param("today") LocalDate today);
+
+    @Query("""
+            select count(pa) > 0 from PlayerAssignmentEntity pa
+            where pa.player.playerId = :playerId
+              and pa.academyCategory.academy.academyId = :academyId
+              and pa.academyCategory.academyCategoryId = :categoryId
+              and pa.status = com.dvillacinda.canteragt.player_assignment.enums.PlayerAssignmentStatus.ACTIVE
+              and pa.startDate <= :today and (pa.endDate is null or pa.endDate >= :today)
+            """)
+    boolean existsCurrentAssignmentForCategory(@Param("playerId") UUID playerId,
+            @Param("academyId") UUID academyId, @Param("categoryId") UUID categoryId,
+            @Param("today") LocalDate today);
 }

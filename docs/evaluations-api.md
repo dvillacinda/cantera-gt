@@ -18,6 +18,11 @@ Legacy GET paths (`/get-all-templates` and `/get-template-by-id/{templateId}`) r
 | POST | `/api/v1/players/{playerId}/evaluations` | Records a completed evaluation. COACH role required, plus current coach and player assignments in the same academy category. |
 | GET | `/api/v1/players/{playerId}/evaluations/{evaluationId}` | Retrieves an evaluation created by the authenticated coach. |
 
+Staff profile routes under `/api/v1/players/**` and `/api/v1/coaches/**` that address a resource by ID require
+`X-Academy-Id`. The backend resolves the active academy and category assignments for each request. A coach must
+currently share the player's academy category; an academy administrator must administer the selected academy and
+the target must have a current assignment there. Out-of-scope profiles return 404.
+
 Example request:
 
 ```json
@@ -45,4 +50,4 @@ The evaluator is resolved from the authenticated JWT and cannot be supplied by t
 
 ## Current scope and verification
 
-The focused command is documented in [testing.md](testing.md). Current automated coverage includes MVC authorization, scope/version service denials, and Keycloak compensation. PostgreSQL end-to-end coverage is still pending because Docker is not available in the development environment. The API contract and implementation must be verified against all ten seeded templates with PostgreSQL before CAN-003 can close.
+The focused command is documented in [testing.md](testing.md). PostgreSQL coverage verifies all ten seeded templates and HTTP persistence on a disposable migrated database. Overall and Growth scoring remain outside the MVP until their functional definitions are approved. The scope of changes to a coach's global profile or account status when that coach has assignments in multiple academies also remains a product decision; ID based access is still checked against the selected academy.

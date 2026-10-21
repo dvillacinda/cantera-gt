@@ -5,6 +5,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import org.hibernate.annotations.UuidGenerator;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.annotations.BatchSize;
+import org.hibernate.type.SqlTypes;
 import com.dvillacinda.canteragt.shared.entity.BaseEntity;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
@@ -31,12 +34,13 @@ public class EvaluationResultEntity extends BaseEntity {
     @Column(precision = 5, scale = 2) private BigDecimal score;
     @Column(length = 500) private String comment;
     @Column(name = "raw_value", precision = 8, scale = 3) private BigDecimal rawValue;
-    private Integer successes;
-    private Integer opportunities;
-    @Column(name = "error_count") private Integer errorCount;
-    private Integer level;
+    @JdbcTypeCode(SqlTypes.SMALLINT) private Integer successes;
+    @JdbcTypeCode(SqlTypes.SMALLINT) private Integer opportunities;
+    @Column(name = "error_count") @JdbcTypeCode(SqlTypes.SMALLINT) private Integer errorCount;
+    @JdbcTypeCode(SqlTypes.SMALLINT) private Integer level;
     @Column(nullable = false, length = 10) private String laterality = "NONE";
     @Column(name = "scoring_status", nullable = false, length = 30) private String scoringStatus = "PENDING";
+    @BatchSize(size = 32)
     @OneToMany(mappedBy = "result", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<EvaluationObservationEntity> observations = new ArrayList<>();
 }
