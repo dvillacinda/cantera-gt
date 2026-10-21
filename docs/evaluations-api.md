@@ -23,6 +23,22 @@ Staff profile routes under `/api/v1/players/**` and `/api/v1/coaches/**` that ad
 currently share the player's academy category; an academy administrator must administer the selected academy and
 the target must have a current assignment there. Out-of-scope profiles return 404.
 
+There is no player self-profile route today. `PLAYER` cannot call the staff player routes. Adding a self-service route
+and deciding its readable/editable fields requires a product decision. Coaches cannot edit their profile through the
+coach API. Existing academy-administrator coach mutations can change the coach's global first/last name, global account
+status, or delete the global coach/user record after a current assignment is found in the selected academy. A coach
+assigned to multiple academies is therefore affected globally. The code does not define whether these global changes
+belong to an academy administrator, only a system administrator, or should become academy-local data; this decision
+is pending, so the API's current mutation permissions are documented rather than changed here.
+
+Evaluation reads are limited to the coach who created the evaluation. Other coaches receive 404 even if they share
+the academy or category; this avoids exposing player data through evaluation IDs. If academy-wide evaluator access is
+desired, it needs an explicit policy decision.
+
+The current official catalog has no criterion with `laterality_mode = REQUIRED`. Some criteria use `OPTIONAL`, while
+others use `NONE`. The create API validates a supplied side for each result but does not require a LEFT/RIGHT pair.
+No bilateral-pair rule can be verified against the official catalog until a template defines such a requirement.
+
 Example request:
 
 ```json

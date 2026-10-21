@@ -2,6 +2,7 @@ package com.dvillacinda.canteragt.evaluation_template.integration;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -112,6 +113,17 @@ class EvaluationHttpPostgresIntegrationTest {
         mockMvc.perform(get("/api/v1/players/get-player-by-id/{id}", fixture.otherPlayerId())
                         .header("X-Academy-Id", fixture.academyId()).with(coachJwt))
                 .andExpect(status().isNotFound());
+        for (String subject : List.of(fixture.futureCoachSubject(), fixture.inactiveCoachSubject(),
+                fixture.expiredCoachSubject())) {
+            mockMvc.perform(get("/api/v1/players/get-player-by-id/{id}", fixture.playerId())
+                            .header("X-Academy-Id", fixture.academyId())
+                            .with(jwt().jwt(token -> token.subject(subject))
+                                    .authorities(List.of(new SimpleGrantedAuthority("ROLE_COACH")))))
+                    .andExpect(status().isForbidden());
+        }
+        mockMvc.perform(get("/api/v1/players/get-player-by-id/{id}", fixture.otherCategoryPlayerId())
+                        .header("X-Academy-Id", fixture.academyId()).with(coachJwt))
+                .andExpect(status().isNotFound());
         mockMvc.perform(get("/api/v1/coaches/get-coach-by-id/{id}", fixture.otherCoachId())
                         .header("X-Academy-Id", fixture.academyId())
                         .with(jwt().jwt(token -> token.subject(fixture.adminSubject()))
@@ -124,6 +136,38 @@ class EvaluationHttpPostgresIntegrationTest {
         JsonNode recovered = objectMapper.readTree(recoveredJson).path("data");
         assertEquals(created.path("evaluation_id").asString(), recovered.path("evaluation_id").asString());
         assertEquals(created.path("results"), recovered.path("results"));
+
+        var sameAcademyCoachJwt = jwt().jwt(token -> token.subject(fixture.sameAcademyCoachSubject()))
+                .authorities(List.of(new SimpleGrantedAuthority("ROLE_COACH")));
+        String sameAcademyEvaluationJson = mockMvc.perform(post("/api/v1/players/{playerId}/evaluations", fixture.playerId())
+                        .with(sameAcademyCoachJwt).contentType(MediaType.APPLICATION_JSON).content(requestJson))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
+        UUID sameAcademyEvaluationId = UUID.fromString(objectMapper.readTree(sameAcademyEvaluationJson)
+                .path("data").path("evaluation_id").asString());
+        String hiddenSameAcademyEvaluation = mockMvc.perform(get(
+                        "/api/v1/players/{playerId}/evaluations/{evaluationId}", fixture.playerId(),
+                        sameAcademyEvaluationId).with(coachJwt))
+                .andExpect(status().isNotFound()).andReturn().getResponse().getContentAsString();
+        assertNoEvaluationData(hiddenSameAcademyEvaluation);
+
+        String otherAcademyEvaluationJson = mockMvc.perform(post(
+                        "/api/v1/players/{playerId}/evaluations", fixture.otherPlayerId())
+                        .with(jwt().jwt(token -> token.subject(fixture.unassignedCoachSubject()))
+                                .authorities(List.of(new SimpleGrantedAuthority("ROLE_COACH"))))
+                        .contentType(MediaType.APPLICATION_JSON).content(requestJson))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
+        UUID otherAcademyEvaluationId = UUID.fromString(objectMapper.readTree(otherAcademyEvaluationJson)
+                .path("data").path("evaluation_id").asString());
+        String hiddenOtherAcademyEvaluation = mockMvc.perform(get(
+                        "/api/v1/players/{playerId}/evaluations/{evaluationId}", fixture.otherPlayerId(),
+                        otherAcademyEvaluationId).with(coachJwt))
+                .andExpect(status().isNotFound()).andReturn().getResponse().getContentAsString();
+        assertNoEvaluationData(hiddenOtherAcademyEvaluation);
+        String nonexistentEvaluation = mockMvc.perform(get(
+                        "/api/v1/players/{playerId}/evaluations/{evaluationId}", fixture.playerId(), UUID.randomUUID())
+                        .with(coachJwt))
+                .andExpect(status().isNotFound()).andReturn().getResponse().getContentAsString();
+        assertNoEvaluationData(nonexistentEvaluation);
 
         int beforeInvalid = jdbcTemplate.queryForObject("select count(*) from evaluations", Integer.class);
         Map<String, Object> invalidVersion = new HashMap<>(request);
@@ -192,6 +236,12 @@ class EvaluationHttpPostgresIntegrationTest {
         nonexistentTemplate.put("template_id", UUID.randomUUID());
         assertRejectedWithoutPersistence(fixture, nonexistentTemplate, 404);
         assertRejectedWithoutPersistence(fixture, request, 404, UUID.randomUUID());
+
+        assertEquals(0, jdbcTemplate.queryForObject("""
+                select count(*) from evaluation_criteria c join evaluation_templates t using (template_id)
+                where t.is_official and c.laterality_mode = 'REQUIRED'
+                """, Integer.class),
+                "The official catalog currently defines no bilateral-required criteria; do not add one just for this test.");
     }
 
     private void assertRejectedWithoutPersistence(Fixture fixture, Map<String, Object> request,
@@ -208,6 +258,13 @@ class EvaluationHttpPostgresIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON).content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().is(expectedStatus));
         assertEquals(before, jdbcTemplate.queryForObject("select count(*) from evaluations", Integer.class));
+    }
+
+    private void assertNoEvaluationData(String responseBody) {
+        assertFalse(responseBody.contains("Fast start"));
+        assertFalse(responseBody.contains("player_id"));
+        assertFalse(responseBody.contains("results"));
+        assertFalse(responseBody.contains("observations"));
     }
 
     private Fixture createFixture() {
@@ -239,11 +296,19 @@ class EvaluationHttpPostgresIntegrationTest {
             UserEntity adminUser = createUser("admin", suffix);
             UserEntity otherCoachUser = createUser("other_coach", suffix);
             UserEntity otherPlayerUser = createUser("other_player", suffix);
+            UserEntity sameAcademyCoachUser = createUser("same_academy_coach", suffix);
+            UserEntity futureCoachUser = createUser("future_coach", suffix);
+            UserEntity inactiveCoachUser = createUser("inactive_coach", suffix);
+            UserEntity expiredCoachUser = createUser("expired_coach", suffix);
             entityManager.persist(coachUser);
             entityManager.persist(playerUser);
             entityManager.persist(adminUser);
             entityManager.persist(otherCoachUser);
             entityManager.persist(otherPlayerUser);
+            entityManager.persist(sameAcademyCoachUser);
+            entityManager.persist(futureCoachUser);
+            entityManager.persist(inactiveCoachUser);
+            entityManager.persist(expiredCoachUser);
             AcademyEntity otherAcademy = AcademyEntity.builder().name("Other integration academy " + suffix)
                     .status(Status.ACTIVE).build();
             entityManager.persist(otherAcademy);
@@ -257,6 +322,14 @@ class EvaluationHttpPostgresIntegrationTest {
             entityManager.persist(coach);
             CoachEntity otherCoach = CoachEntity.builder().user(otherCoachUser).build();
             entityManager.persist(otherCoach);
+            CoachEntity sameAcademyCoach = CoachEntity.builder().user(sameAcademyCoachUser).build();
+            entityManager.persist(sameAcademyCoach);
+            CoachEntity futureCoach = CoachEntity.builder().user(futureCoachUser).build();
+            entityManager.persist(futureCoach);
+            CoachEntity inactiveCoach = CoachEntity.builder().user(inactiveCoachUser).build();
+            entityManager.persist(inactiveCoach);
+            CoachEntity expiredCoach = CoachEntity.builder().user(expiredCoachUser).build();
+            entityManager.persist(expiredCoach);
             List<PositionEntity> existingPositions = entityManager.createQuery(
                     "select p from PositionEntity p", PositionEntity.class).setMaxResults(1).getResultList();
             PositionEntity position = existingPositions.isEmpty()
@@ -279,6 +352,18 @@ class EvaluationHttpPostgresIntegrationTest {
             var start = LocalDate.now().minusDays(1);
             entityManager.persist(CoachAssignmentEntity.builder().coach(coach).academyCategory(academyCategory)
                     .coachRole(role).startDate(start).status(CoachAssignmentStatus.ACTIVE).build());
+            entityManager.persist(CoachAssignmentEntity.builder().coach(sameAcademyCoach)
+                    .academyCategory(academyCategory).coachRole(role).startDate(start)
+                    .status(CoachAssignmentStatus.ACTIVE).build());
+            entityManager.persist(CoachAssignmentEntity.builder().coach(futureCoach)
+                    .academyCategory(academyCategory).coachRole(role).startDate(LocalDate.now().plusDays(1))
+                    .status(CoachAssignmentStatus.ACTIVE).build());
+            entityManager.persist(CoachAssignmentEntity.builder().coach(inactiveCoach)
+                    .academyCategory(academyCategory).coachRole(role).startDate(start)
+                    .status(CoachAssignmentStatus.INACTIVE).build());
+            entityManager.persist(CoachAssignmentEntity.builder().coach(expiredCoach)
+                    .academyCategory(academyCategory).coachRole(role).startDate(start)
+                    .endDate(LocalDate.now().minusDays(1)).status(CoachAssignmentStatus.ACTIVE).build());
             entityManager.persist(PlayerAssignmentEntity.builder().player(player).academyCategory(academyCategory)
                     .startDate(start).status(PlayerAssignmentStatus.ACTIVE).build());
             entityManager.persist(CoachAssignmentEntity.builder().coach(otherCoach)
@@ -298,10 +383,30 @@ class EvaluationHttpPostgresIntegrationTest {
                     order by c.displayOrder
                     """, EvaluationCriterionEntity.class)
                     .setParameter("templateId", template.getTemplateId()).getResultList();
+            List<CategoryEntity> secondaryCategories = entityManager.createQuery(
+                    "select c from CategoryEntity c where c.categoryCode = :code", CategoryEntity.class)
+                    .setParameter("code", CategoryCode.Sub15).setMaxResults(1).getResultList();
+            CategoryEntity secondaryCategory = secondaryCategories.isEmpty()
+                    ? CategoryEntity.builder().name("Integration Sub 15").minAge(14).maxAge(15)
+                            .categoryCode(CategoryCode.Sub15).status(Status.ACTIVE).build()
+                    : secondaryCategories.get(0);
+            if (secondaryCategory.getCategoryId() == null) entityManager.persist(secondaryCategory);
+            AcademyCategoryEntity otherCategory = AcademyCategoryEntity.builder().academy(academy)
+                    .category(secondaryCategory).season(season).status(AcademyCategoryStatus.ACTIVE).build();
+            entityManager.persist(otherCategory);
+            UserEntity categoryPlayerUser = createUser("other_category_player", suffix);
+            entityManager.persist(categoryPlayerUser);
+            PlayerEntity categoryPlayer = PlayerEntity.builder().user(categoryPlayerUser)
+                    .birthDate(LocalDate.now().minusYears(13)).sex(Sex.OTHER).principalPosition(position).build();
+            entityManager.persist(categoryPlayer);
+            entityManager.persist(PlayerAssignmentEntity.builder().player(categoryPlayer)
+                    .academyCategory(otherCategory).startDate(start).status(PlayerAssignmentStatus.ACTIVE).build());
             entityManager.flush();
             return new Fixture(coachUser.getKeycloakId(), adminUser.getKeycloakId(), otherCoachUser.getKeycloakId(),
+                    sameAcademyCoachUser.getKeycloakId(), futureCoachUser.getKeycloakId(),
+                    inactiveCoachUser.getKeycloakId(), expiredCoachUser.getKeycloakId(),
                     player.getPlayerId(),
-                    otherPlayer.getPlayerId(), otherCoach.getCoachId(), academy.getAcademyId(),
+                    otherPlayer.getPlayerId(), categoryPlayer.getPlayerId(), otherCoach.getCoachId(), academy.getAcademyId(),
                     template.getTemplateId(), template.getVersion(), criteria);
         });
     }
@@ -354,8 +459,13 @@ class EvaluationHttpPostgresIntegrationTest {
         private final String coachSubject;
         private final String adminSubject;
         private final String unassignedCoachSubject;
+        private final String sameAcademyCoachSubject;
+        private final String futureCoachSubject;
+        private final String inactiveCoachSubject;
+        private final String expiredCoachSubject;
         private final UUID playerId;
         private final UUID otherPlayerId;
+        private final UUID otherCategoryPlayerId;
         private final UUID otherCoachId;
         private final UUID academyId;
         private final UUID templateId;
@@ -363,14 +473,20 @@ class EvaluationHttpPostgresIntegrationTest {
         private final List<EvaluationCriterionEntity> criteria;
         private int observationCount;
         private Fixture(String coachSubject, String adminSubject, String unassignedCoachSubject,
-                UUID playerId, UUID otherPlayerId,
+                String sameAcademyCoachSubject, String futureCoachSubject, String inactiveCoachSubject,
+                String expiredCoachSubject, UUID playerId, UUID otherPlayerId, UUID otherCategoryPlayerId,
                 UUID otherCoachId, UUID academyId, UUID templateId, Integer templateVersion,
                 List<EvaluationCriterionEntity> criteria) {
             this.coachSubject = coachSubject;
             this.adminSubject = adminSubject;
             this.unassignedCoachSubject = unassignedCoachSubject;
+            this.sameAcademyCoachSubject = sameAcademyCoachSubject;
+            this.futureCoachSubject = futureCoachSubject;
+            this.inactiveCoachSubject = inactiveCoachSubject;
+            this.expiredCoachSubject = expiredCoachSubject;
             this.playerId = playerId;
             this.otherPlayerId = otherPlayerId;
+            this.otherCategoryPlayerId = otherCategoryPlayerId;
             this.otherCoachId = otherCoachId;
             this.academyId = academyId;
             this.templateId = templateId;
@@ -380,8 +496,13 @@ class EvaluationHttpPostgresIntegrationTest {
         String coachSubject() { return coachSubject; }
         String adminSubject() { return adminSubject; }
         String unassignedCoachSubject() { return unassignedCoachSubject; }
+        String sameAcademyCoachSubject() { return sameAcademyCoachSubject; }
+        String futureCoachSubject() { return futureCoachSubject; }
+        String inactiveCoachSubject() { return inactiveCoachSubject; }
+        String expiredCoachSubject() { return expiredCoachSubject; }
         UUID playerId() { return playerId; }
         UUID otherPlayerId() { return otherPlayerId; }
+        UUID otherCategoryPlayerId() { return otherCategoryPlayerId; }
         UUID otherCoachId() { return otherCoachId; }
         UUID academyId() { return academyId; }
         UUID templateId() { return templateId; }

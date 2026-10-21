@@ -36,6 +36,12 @@ criteria, foreign criteria, invalid metric values/observations, and missing reso
 `jwt()` request postprocessor tests the Spring authorization/controller/service path; the separate Keycloak test
 verifies a real token's signature.
 
+The PostgreSQL HTTP integration also checks that future, inactive, and expired coach assignments cannot read a
+player; that a coach cannot read a player assigned to another category; and that another evaluator's evaluation is
+404 for both a same-academy coach and a coach from another academy. The official catalog query confirms there are
+currently no `REQUIRED` laterality criteria, so bilateral-pair rejection is not testable without changing the
+official template policy. No player self-profile endpoint exists; the PLAYER role remains denied on staff routes.
+
 ```powershell
 mvn "-Dtest=CanteragtApplicationTests,EvaluationHttpPostgresIntegrationTest,KeycloakJwtIntegrationTest" test
 ```
