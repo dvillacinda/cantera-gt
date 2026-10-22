@@ -39,7 +39,6 @@ import com.dvillacinda.canteragt.category.enums.CategoryCode;
 import com.dvillacinda.canteragt.coach.entity.CoachEntity;
 import com.dvillacinda.canteragt.coach_assignment.entity.CoachAssignmentEntity;
 import com.dvillacinda.canteragt.coach_assignment.enums.CoachAssignmentStatus;
-import com.dvillacinda.canteragt.coach_assignment.entity.CoachAssignmentEntity;
 import com.dvillacinda.canteragt.coach_role.entity.CoachRoleEntity;
 import com.dvillacinda.canteragt.coach_role.enums.CoachRoleCode;
 import com.dvillacinda.canteragt.evaluation_template.entity.EvaluationCriterionEntity;
@@ -390,11 +389,6 @@ class EvaluationHttpPostgresIntegrationTest {
                 "The official catalog currently defines no bilateral-required criteria; do not add one just for this test.");
     }
 
-    private void assertRejectedWithoutPersistence(Fixture fixture, Map<String, Object> request,
-            int expectedStatus) throws Exception {
-        assertRejectedWithoutPersistence(fixture, request, expectedStatus, fixture.playerId());
-    }
-
     private void assertRejectedWithoutPersistence(Fixture fixture, JsonNode request, int expectedStatus)
             throws Exception {
         assertRejectedWithoutPersistence(fixture, request, expectedStatus, fixture.playerId());
@@ -487,17 +481,6 @@ class EvaluationHttpPostgresIntegrationTest {
             throw new AssertionError(location + " must be a JSON object");
         }
         return objectNode;
-    }
-
-    private void assertRejectedWithoutPersistence(Fixture fixture, Map<String, Object> request,
-            int expectedStatus, UUID playerId) throws Exception {
-        int before = jdbcTemplate.queryForObject("select count(*) from evaluations", Integer.class);
-        mockMvc.perform(post("/api/v1/players/{playerId}/evaluations", playerId)
-                        .with(jwt().jwt(token -> token.subject(fixture.coachSubject()))
-                                .authorities(List.of(new SimpleGrantedAuthority("ROLE_COACH"))))
-                        .contentType(MediaType.APPLICATION_JSON).content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().is(expectedStatus));
-        assertEquals(before, jdbcTemplate.queryForObject("select count(*) from evaluations", Integer.class));
     }
 
     private void assertNoEvaluationData(String responseBody) {
@@ -646,7 +629,7 @@ class EvaluationHttpPostgresIntegrationTest {
                     .academyCategory(otherCategory).startDate(start).status(PlayerAssignmentStatus.ACTIVE).build());
             entityManager.flush();
             return new Fixture(suffix, coachUser.getUserId(), coachUser.getKeycloakId(), playerUser.getKeycloakId(),
-                    otherPlayerUser.getKeycloakId(), adminUser.getKeycloakId(), otherCoachUser.getKeycloakId(),
+                    adminUser.getKeycloakId(), otherCoachUser.getKeycloakId(),
                     sameAcademyCoachUser.getKeycloakId(), futureCoachUser.getKeycloakId(),
                     inactiveCoachUser.getKeycloakId(), expiredCoachUser.getKeycloakId(),
                     player.getPlayerId(),
@@ -663,8 +646,11 @@ class EvaluationHttpPostgresIntegrationTest {
     }
 
     private Map<String, Object> evaluationRequest(Fixture fixture) {
-        int observations = fixture.criteria().stream().map(EvaluationCriterionEntity::getAttemptsCount)
-                .filter(java.util.Objects::nonNull).mapToInt(Integer::intValue).sum();
+        int observations = 0;
+        for (EvaluationCriterionEntity criterion : fixture.criteria()) {
+            Integer attemptsCount = criterion.getAttemptsCount();
+            if (attemptsCount != null) observations += attemptsCount;
+        }
         fixture.setObservationCount(observations);
         return evaluationRequest(fixture.templateId(), fixture.templateVersion(), fixture.criteria(), "NONE");
     }
@@ -731,7 +717,6 @@ class EvaluationHttpPostgresIntegrationTest {
         private final UUID coachUserId;
         private final String coachSubject;
         private final String playerSubject;
-        private final String otherPlayerSubject;
         private final String adminSubject;
         private final String unassignedCoachSubject;
         private final String sameAcademyCoachSubject;
@@ -750,7 +735,6 @@ class EvaluationHttpPostgresIntegrationTest {
         private final List<EvaluationCriterionEntity> criteria;
         private int observationCount;
         private Fixture(String suffix, UUID coachUserId, String coachSubject, String playerSubject,
-                String otherPlayerSubject,
                 String adminSubject, String unassignedCoachSubject,
                 String sameAcademyCoachSubject, String futureCoachSubject, String inactiveCoachSubject,
                 String expiredCoachSubject, UUID playerId, UUID otherPlayerId, UUID otherCategoryPlayerId,
@@ -761,7 +745,6 @@ class EvaluationHttpPostgresIntegrationTest {
             this.coachUserId = coachUserId;
             this.coachSubject = coachSubject;
             this.playerSubject = playerSubject;
-            this.otherPlayerSubject = otherPlayerSubject;
             this.adminSubject = adminSubject;
             this.unassignedCoachSubject = unassignedCoachSubject;
             this.sameAcademyCoachSubject = sameAcademyCoachSubject;
@@ -781,7 +764,6 @@ class EvaluationHttpPostgresIntegrationTest {
         }
         String coachSubject() { return coachSubject; }
         String playerSubject() { return playerSubject; }
-        String otherPlayerSubject() { return otherPlayerSubject; }
         String suffix() { return suffix; }
         UUID coachUserId() { return coachUserId; }
         String adminSubject() { return adminSubject; }

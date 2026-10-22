@@ -11,6 +11,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.Objects;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
@@ -26,6 +27,7 @@ class KeycloakJwtIntegrationTest {
         String clientSecret = env("KEYCLOAK_ADMIN_CLIENT_SECRET");
         assumeTrue(issuer != null && clientId != null && clientSecret != null,
                 "Keycloak integration environment is not configured");
+        issuer = Objects.requireNonNull(issuer);
 
         String form = "grant_type=client_credentials&client_id=" + encode(clientId)
                 + "&client_secret=" + encode(clientSecret);
