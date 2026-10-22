@@ -8,6 +8,7 @@ import org.springframework.stereotype.Component;
 
 import com.dvillacinda.canteragt.player.dto.PlayerCreateRequest;
 import com.dvillacinda.canteragt.player.dto.PlayerResponse;
+import com.dvillacinda.canteragt.player.dto.PlayerSelfProfileResponse;
 import com.dvillacinda.canteragt.player.entity.PlayerEntity;
 import com.dvillacinda.canteragt.position.entity.PositionEntity;
 import com.dvillacinda.canteragt.position.mapper.PositionMapper;
@@ -34,6 +35,20 @@ public class PlayerMapper {
                         .collect(Collectors.toCollection(LinkedHashSet::new)),
                 player.getCreatedAt(),
                 player.getUpdatedAt());
+    }
+
+    public PlayerSelfProfileResponse toSelfProfileResponse(PlayerEntity player) {
+        return new PlayerSelfProfileResponse(
+                player.getPlayerId(),
+                player.getUser().getEmail(),
+                player.getUser().getFirstName(),
+                player.getUser().getLastName(),
+                player.getBirthDate(),
+                player.getSex(),
+                positionMapper.toResponse(player.getPrincipalPosition()),
+                player.getSecondaryPositions().stream()
+                        .map(positionMapper::toResponse)
+                        .collect(Collectors.toCollection(LinkedHashSet::new)));
     }
 
     public PlayerEntity toEntity(PlayerCreateRequest player, UserEntity user, PositionEntity principalPosition,

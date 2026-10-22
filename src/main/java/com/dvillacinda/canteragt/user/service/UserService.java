@@ -94,6 +94,7 @@ public class UserService {
     public UserResponse updateUser(UUID userId, UserUpdateRequest request, Authentication authentication,
             UUID academyId) {
         academyAccessService.requireUserBelongsToAcademy(authentication, academyId, userId);
+        academyAccessService.requireGlobalCoachAccountMutationAccess(authentication, userId);
         return updateUser(userId, request);
     }
 
@@ -117,6 +118,7 @@ public class UserService {
     @Transactional
     public UserResponse updateStatus(UUID userId, UserStatus status, Authentication authentication, UUID academyId) {
         academyAccessService.requireUserBelongsToAcademy(authentication, academyId, userId);
+        academyAccessService.requireGlobalCoachAccountMutationAccess(authentication, userId);
         return updateStatus(userId, status);
     }
 

@@ -62,6 +62,28 @@ public class AcademyAccessService {
         return academyId;
     }
 
+    /** Global coach account changes are reserved for SYSTEM_ADMIN. */
+    @Transactional(readOnly = true)
+    public void requireSystemAdminAccess(Authentication authentication) {
+        requireAuthenticated(authentication);
+        if (!hasRole(authentication, SYSTEM_ADMIN)) {
+            throw new UnauthorizedAccessException("System administrator role is required");
+        }
+    }
+
+    /** An academy administrator may manage coach assignments, never a coach's global account fields. */
+    @Transactional(readOnly = true)
+    public void requireGlobalCoachAccountMutationAccess(Authentication authentication, UUID userId) {
+        requireAuthenticated(authentication);
+        if (hasRole(authentication, SYSTEM_ADMIN)) {
+            return;
+        }
+        if (hasRole(authentication, ACADEMY_ADMIN)
+                && coachRepository.findByUser_UserId(userId).isPresent()) {
+            throw new UnauthorizedAccessException("Global coach account changes require a system administrator");
+        }
+    }
+
     /**
      * Read access: everything {@link #requireAcademyAccess} allows, plus a COACH holding an assignment
      * in force today (ACTIVE and within its date range) in a category of the selected academy.

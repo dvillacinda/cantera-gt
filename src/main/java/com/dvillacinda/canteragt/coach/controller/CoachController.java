@@ -36,35 +36,36 @@ public class CoachController {
     private final CoachService coachService;
     
     @PostMapping("/create-coach")
-    @PreAuthorize("hasAnyRole('ACADEMY_ADMIN', 'SYSTEM_ADMIN')")
-    public ResponseEntity<ApiResponse<CoachResponse>> createCoach(@Valid @RequestBody CoachCreateRequest coach) {
+    @PreAuthorize("hasRole('SYSTEM_ADMIN')")
+    public ResponseEntity<ApiResponse<CoachResponse>> createCoach(@Valid @RequestBody CoachCreateRequest coach,
+            Authentication authentication) {
         log.info("Creating coach");
-        CoachResponse response = coachService.createCoach(coach);
+        CoachResponse response = coachService.createCoach(coach, authentication);
         log.info("Coach created with id {}", response.coachId());
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(new ApiResponse<>(true, HttpStatus.CREATED, "Coach created successfully", response));
     }
 
     @DeleteMapping("/delete-coach-by-id/{coachId}")
-    @PreAuthorize("hasAnyRole('ACADEMY_ADMIN' , 'SYSTEM_ADMIN')")
+    @PreAuthorize("hasRole('SYSTEM_ADMIN')")
     public ResponseEntity<ApiResponse<Void>> deleteCoachById(@PathVariable UUID coachId,
-            @RequestHeader("X-Academy-Id") UUID academyId, Authentication authentication) {
+            Authentication authentication) {
         log.info("Deleting coach with id {}", coachId);
-        coachService.deleteCoachById(coachId, academyId, authentication);
+        coachService.deleteCoachById(coachId, authentication);
         return ResponseEntity.ok(new ApiResponse<>(true, HttpStatus.OK, "Coach deleted successfully", null));
     }
 
-    @PreAuthorize ("hasAnyRole('ACADEMY_ADMIN', 'SYSTEM_ADMIN')")
+    @PreAuthorize ("hasRole('SYSTEM_ADMIN')")
     @PatchMapping("/update-coach-by-id/{coachId}")
     public ResponseEntity<ApiResponse<CoachResponse>> updateCoachById(@PathVariable UUID coachId,
-            @RequestHeader("X-Academy-Id") UUID academyId, Authentication authentication,
+            Authentication authentication,
             @Valid @RequestBody CoachUpdateRequest coach) {
         log.info("Updating coach with id {}", coachId);
-        CoachResponse response = coachService.updateCoach(coachId, coach, academyId, authentication);
+        CoachResponse response = coachService.updateCoach(coachId, coach, authentication);
         return ResponseEntity.ok(new ApiResponse<>(true, HttpStatus.OK, "Coach updated successfully", response));
     }
 
-    @PreAuthorize("hasAnyRole('ACADEMY_ADMIN')")
+    @PreAuthorize("hasAnyRole('ACADEMY_ADMIN', 'SYSTEM_ADMIN')")
     @GetMapping("/get-coach-by-id/{coachId}")
     public ResponseEntity<ApiResponse<CoachResponse>> getCoachById(@PathVariable UUID coachId,
             @RequestHeader("X-Academy-Id") UUID academyId, Authentication authentication) {
@@ -73,14 +74,12 @@ public class CoachController {
         return ResponseEntity.ok(new ApiResponse<>(true, HttpStatus.OK, "Coach found successfully", response));
     }
 
-    @PreAuthorize ("hasAnyRole('ACADEMY_ADMIN', 'SYSTEM_ADMIN')")
+    @PreAuthorize ("hasRole('SYSTEM_ADMIN')")
     @PatchMapping ("/update-coach-status-by-id/{coachId}/{status}")
-
     public ResponseEntity<ApiResponse<CoachResponse>> updateCoachStatusById(@PathVariable UUID coachId,
-            @PathVariable UserStatus status, @RequestHeader("X-Academy-Id") UUID academyId,
-            Authentication authentication) {
+            @PathVariable UserStatus status, Authentication authentication) {
         log.info("Updating coach status with id {}", coachId);
-        CoachResponse response = coachService.updateCoachStatusById(coachId, status, academyId, authentication);
+        CoachResponse response = coachService.updateCoachStatusById(coachId, status, authentication);
         return ResponseEntity.ok(new ApiResponse<>(true, HttpStatus.OK, "Coach status updated successfully", response));
     }
 

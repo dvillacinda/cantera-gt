@@ -36,11 +36,12 @@ criteria, foreign criteria, invalid metric values/observations, and missing reso
 `jwt()` request postprocessor tests the Spring authorization/controller/service path; the separate Keycloak test
 verifies a real token's signature.
 
-The PostgreSQL HTTP integration also checks that future, inactive, and expired coach assignments cannot read a
-player; that a coach cannot read a player assigned to another category; and that another evaluator's evaluation is
-404 for both a same-academy coach and a coach from another academy. The official catalog query confirms there are
-currently no `REQUIRED` laterality criteria, so bilateral-pair rejection is not testable without changing the
-official template policy. No player self-profile endpoint exists; the PLAYER role remains denied on staff routes.
+The PostgreSQL HTTP integration also checks future, inactive, and expired coach assignments, category isolation,
+creator-only evaluation reads (same and cross academy), and generic 404 responses without evaluation data. It verifies
+that the `PASE_RECEPCION` `OPTIONAL` criterion persists and returns both LEFT and RIGHT. The official catalog query
+confirms there are no `REQUIRED` criteria, so bilateral-pair rejection remains untestable without a business rule.
+It also verifies `/api/v1/players/me` resolves only the JWT subject's profile and omits internal IDs and administrative
+fields, and checks academy-admin denial on global coach/user mutations plus academy-scoped assignment updates.
 
 ```powershell
 mvn "-Dtest=CanteragtApplicationTests,EvaluationHttpPostgresIntegrationTest,KeycloakJwtIntegrationTest" test

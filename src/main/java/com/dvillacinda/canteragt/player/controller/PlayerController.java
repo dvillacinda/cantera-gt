@@ -18,6 +18,7 @@ import org.springframework.security.core.Authentication;
 
 import com.dvillacinda.canteragt.player.dto.PlayerCreateRequest;
 import com.dvillacinda.canteragt.player.dto.PlayerResponse;
+import com.dvillacinda.canteragt.player.dto.PlayerSelfProfileResponse;
 import com.dvillacinda.canteragt.player.dto.PlayerUpdateRequest;
 import com.dvillacinda.canteragt.player.service.PlayerService;
 import com.dvillacinda.canteragt.shared.dto.ApiResponse;
@@ -33,6 +34,13 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class PlayerController {
     private final PlayerService playerService;
+
+    @GetMapping("/me")
+    @PreAuthorize("hasRole('PLAYER')")
+    public ResponseEntity<ApiResponse<PlayerSelfProfileResponse>> getOwnProfile(Authentication authentication) {
+        PlayerSelfProfileResponse response = playerService.getOwnProfile(authentication);
+        return ResponseEntity.ok(new ApiResponse<>(true, HttpStatus.OK, "Player profile found successfully", response));
+    }
 
     @PostMapping("/create-player")
     @PreAuthorize("hasAnyRole('ACADEMY_ADMIN', 'COACH', 'SYSTEM_ADMIN')")

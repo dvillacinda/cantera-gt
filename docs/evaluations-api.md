@@ -11,6 +11,14 @@ All JSON property names use `snake_case`. Authentication uses the Keycloak beare
 
 Legacy GET paths (`/get-all-templates` and `/get-template-by-id/{templateId}`) remain aliases for compatibility. Template administration is not exposed by the application. The database migration also blocks updates/deletes to official templates and criteria.
 
+## Player self-service
+
+`GET /api/v1/players/me` requires `PLAYER` and resolves the player from the validated JWT `sub` and the local user link. It accepts no player identifier. Its response contains the player's own name, email, birth date, sex, and position data; it omits local user ID, Keycloak subject, account status, academy membership, assignments, and evaluation data. No player self-edit endpoint is provided. Academy and assignment data remain read-only through the existing `/api/v1/player-assignments/get-my-*` routes.
+
+## Coach administration
+
+Creating or deleting a coach account, changing global profile names, and changing global account status require `SYSTEM_ADMIN`. Academy administrators manage coach-to-academy/category assignments through `/api/v1/coach-assignments/**`; each operation verifies the active administrator assignment and scopes the assignment ID to that academy. The general user update/status routes also reject academy administrators when the target user is a coach, preventing a route-level bypass of the global account policy. Coach profile reads remain academy-scoped.
+
 ## Record and retrieve an evaluation
 
 | Method | Path | Behavior |

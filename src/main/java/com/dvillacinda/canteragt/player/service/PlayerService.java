@@ -11,6 +11,7 @@ import org.springframework.security.core.Authentication;
 
 import com.dvillacinda.canteragt.player.dto.PlayerCreateRequest;
 import com.dvillacinda.canteragt.player.dto.PlayerResponse;
+import com.dvillacinda.canteragt.player.dto.PlayerSelfProfileResponse;
 import com.dvillacinda.canteragt.player.dto.PlayerUpdateRequest;
 import com.dvillacinda.canteragt.academy_admin.service.AcademyAccessService;
 import com.dvillacinda.canteragt.player.entity.PlayerEntity;
@@ -74,6 +75,14 @@ public class PlayerService {
         PlayerEntity player = playerRepository.findById(playerId).orElseThrow(
                 () -> new NotFoundException("Player with id " + playerId + " not found"));
         return playerMapper.toResponse(player);
+    }
+
+    @Transactional(readOnly = true)
+    public PlayerSelfProfileResponse getOwnProfile(Authentication authentication) {
+        UUID playerId = academyAccessService.requireAuthenticatedPlayerId(authentication);
+        PlayerEntity player = playerRepository.findById(playerId).orElseThrow(
+                () -> new NotFoundException("Player profile not found"));
+        return playerMapper.toSelfProfileResponse(player);
     }
 
     public PlayerResponse updatePlayer(UUID playerId, PlayerUpdateRequest request, UUID academyId,

@@ -28,11 +28,13 @@ public class CoachService {
     private final AcademyAccessService academyAccessService;
 
     @Transactional 
-    public CoachResponse createCoach(CoachCreateRequest coach) {
+    public CoachResponse createCoach(CoachCreateRequest coach, Authentication authentication) {
+        academyAccessService.requireSystemAdminAccess(authentication);
         var user = userService.createUserEntity(coach.userCreateRequest(), coach.firstName(), coach.lastName());
         try {
             userService.assignKeycloakRole(user.getKeycloakId(), "COACH");
             CoachEntity coachEntity = coachMapper.toEntity(coach);
+            coachEntity.setUser(user);
             CoachEntity savedCoach = coachRepository.saveAndFlush(coachEntity);
             return coachMapper.toResponse(savedCoach);
         } catch (RuntimeException failure) {
@@ -55,8 +57,8 @@ public class CoachService {
     }
 
     @Transactional 
-    public void deleteCoachById(UUID coachId, UUID academyId, Authentication authentication) {
-        academyAccessService.requireCoachAccess(authentication, academyId, coachId);
+    public void deleteCoachById(UUID coachId, Authentication authentication) {
+        academyAccessService.requireSystemAdminAccess(authentication);
         CoachEntity coach = coachRepository.findById(coachId).orElseThrow(
             () -> new NotFoundException("Coach with id " + coachId + " not found")
         );
@@ -67,9 +69,8 @@ public class CoachService {
     }
 
     @Transactional
-    public CoachResponse updateCoach(UUID coachId, CoachUpdateRequest request, UUID academyId,
-            Authentication authentication) {
-        academyAccessService.requireCoachAccess(authentication, academyId, coachId);
+    public CoachResponse updateCoach(UUID coachId, CoachUpdateRequest request, Authentication authentication) {
+        academyAccessService.requireSystemAdminAccess(authentication);
         CoachEntity existing = coachRepository.findById(coachId).orElseThrow(
             () -> new NotFoundException("Coach with id " + coachId + " not found")
         );
@@ -80,9 +81,8 @@ public class CoachService {
     }
 
     @Transactional 
-    public CoachResponse updateCoachStatusById(UUID coachId, UserStatus status, UUID academyId,
-            Authentication authentication) {
-        academyAccessService.requireCoachAccess(authentication, academyId, coachId);
+    public CoachResponse updateCoachStatusById(UUID coachId, UserStatus status, Authentication authentication) {
+        academyAccessService.requireSystemAdminAccess(authentication);
         CoachEntity existing = coachRepository.findById(coachId).orElseThrow(
             () -> new NotFoundException("Coach with id " + coachId + " not found")
         );

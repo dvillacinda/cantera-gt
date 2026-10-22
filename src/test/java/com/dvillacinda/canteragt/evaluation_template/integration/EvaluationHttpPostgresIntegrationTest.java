@@ -5,6 +5,8 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -26,6 +28,7 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import com.dvillacinda.canteragt.academy.entity.AcademyEntity;
 import com.dvillacinda.canteragt.academy_admin.entity.AcademyAdminEntity;
@@ -36,6 +39,7 @@ import com.dvillacinda.canteragt.category.enums.CategoryCode;
 import com.dvillacinda.canteragt.coach.entity.CoachEntity;
 import com.dvillacinda.canteragt.coach_assignment.entity.CoachAssignmentEntity;
 import com.dvillacinda.canteragt.coach_assignment.enums.CoachAssignmentStatus;
+import com.dvillacinda.canteragt.coach_assignment.entity.CoachAssignmentEntity;
 import com.dvillacinda.canteragt.coach_role.entity.CoachRoleEntity;
 import com.dvillacinda.canteragt.coach_role.enums.CoachRoleCode;
 import com.dvillacinda.canteragt.evaluation_template.entity.EvaluationCriterionEntity;
@@ -53,10 +57,14 @@ import com.dvillacinda.canteragt.season.enums.SeasonStatus;
 import com.dvillacinda.canteragt.shared.enums.Status;
 import com.dvillacinda.canteragt.shared.enums.UserStatus;
 import com.dvillacinda.canteragt.user.entity.UserEntity;
+import com.dvillacinda.canteragt.user.dto.UserCreateRequest;
+import com.dvillacinda.canteragt.auth.service.KeycloakUserService;
 
 import jakarta.persistence.EntityManager;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.node.ArrayNode;
+import tools.jackson.databind.node.ObjectNode;
 
 /** Requires an isolated PostgreSQL database with the application migrations applied. */
 @SpringBootTest
@@ -67,12 +75,39 @@ class EvaluationHttpPostgresIntegrationTest {
     @Autowired private PlatformTransactionManager transactionManager;
     @Autowired private JdbcTemplate jdbcTemplate;
     @Autowired private ObjectMapper objectMapper;
+    @MockitoBean private KeycloakUserService keycloakUserService;
 
     @Test
     void coachReadsOfficialTemplateCreatesAndRecoversPersistedEvaluation() throws Exception {
         Fixture fixture = createFixture();
         var coachJwt = jwt().jwt(token -> token.subject(fixture.coachSubject()))
                 .authorities(List.of(new SimpleGrantedAuthority("ROLE_COACH")));
+        var playerJwt = jwt().jwt(token -> token.subject(fixture.playerSubject()))
+                .authorities(List.of(new SimpleGrantedAuthority("ROLE_PLAYER")));
+
+        String ownProfileJson = mockMvc.perform(get("/api/v1/players/me").with(playerJwt))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        JsonNode ownProfile = objectMapper.readTree(ownProfileJson).path("data");
+        assertEquals(fixture.playerId().toString(), ownProfile.path("player_id").asString());
+        assertEquals("Integration", ownProfile.path("first_name").asString());
+        assertEquals("it_player_" + fixture.suffix() + "@example.test", ownProfile.path("email").asString());
+        assertFalse(ownProfile.has("user_id"));
+        assertFalse(ownProfile.has("keycloak_id"));
+        assertFalse(ownProfile.has("status"));
+        assertFalse(ownProfile.has("academy_id"));
+        String ownProfileWithForeignId = mockMvc.perform(get("/api/v1/players/me")
+                        .param("player_id", fixture.otherPlayerId().toString()).with(playerJwt))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        assertEquals(fixture.playerId().toString(), objectMapper.readTree(ownProfileWithForeignId)
+                .path("data").path("player_id").asString());
+        mockMvc.perform(get("/api/v1/players/get-player-by-id/{id}", fixture.playerId())
+                        .header("X-Academy-Id", fixture.academyId()).with(playerJwt))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(get("/api/v1/players/get-player-by-id/{id}", fixture.otherPlayerId())
+                        .header("X-Academy-Id", fixture.academyId()).with(playerJwt))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(get("/api/v1/players/me")).andExpect(status().isUnauthorized());
+        mockMvc.perform(get("/api/v1/players/me").with(coachJwt)).andExpect(status().isForbidden());
 
         String templatesJson = mockMvc.perform(get("/api/v1/evaluation-templates").with(coachJwt))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
@@ -130,12 +165,124 @@ class EvaluationHttpPostgresIntegrationTest {
                                 .authorities(List.of(new SimpleGrantedAuthority("ROLE_ACADEMY_ADMIN")))))
                 .andExpect(status().isNotFound());
 
+        var academyAdminJwt = jwt().jwt(token -> token.subject(fixture.adminSubject()))
+                .authorities(List.of(new SimpleGrantedAuthority("ROLE_ACADEMY_ADMIN")));
+        mockMvc.perform(patch("/api/v1/coaches/update-coach-by-id/{coachId}", fixture.otherCoachId())
+                        .with(academyAdminJwt).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"first_name\":\"Academy edit\"}"))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(patch("/api/v1/coaches/update-coach-status-by-id/{coachId}/INACTIVE", fixture.otherCoachId())
+                        .with(academyAdminJwt))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(delete("/api/v1/coaches/delete-coach-by-id/{coachId}", fixture.otherCoachId())
+                        .with(academyAdminJwt))
+                .andExpect(status().isForbidden());
+        String coachCreateJson = """
+                {"user_create_request":{"email":"new-coach-%s@example.test","username":"new-coach-%s","status":"ACTIVE"},
+                 "first_name":"Admin-created","last_name":"Coach"}
+                """.formatted(fixture.suffix(), fixture.suffix());
+        mockMvc.perform(post("/api/v1/coaches/create-coach").with(academyAdminJwt)
+                        .contentType(MediaType.APPLICATION_JSON).content(coachCreateJson))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(patch("/api/v1/users/update-user/{userId}", fixture.coachUserId())
+                        .header("X-Academy-Id", fixture.academyId()).with(academyAdminJwt)
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"first_name\":\"Bypass\"}"))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(patch("/api/v1/users/update-user-status-by-id/{userId}/INACTIVE", fixture.coachUserId())
+                        .header("X-Academy-Id", fixture.academyId()).with(academyAdminJwt))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(patch("/api/v1/coach-assignments/update-coach-assignment-by-id/{id}",
+                        fixture.otherCoachAssignmentId())
+                        .header("X-Academy-Id", fixture.academyId()).with(academyAdminJwt)
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"status\":\"INACTIVE\"}"))
+                .andExpect(status().isNotFound());
+        assertEquals("ACTIVE", jdbcTemplate.queryForObject(
+                "select status from coach_assignments where coach_assignment_id = ?", String.class,
+                fixture.otherCoachAssignmentId()));
+        mockMvc.perform(patch("/api/v1/coach-assignments/update-coach-assignment-by-id/{id}",
+                        fixture.ownCoachAssignmentId())
+                        .header("X-Academy-Id", fixture.academyId()).with(academyAdminJwt)
+                        .contentType(MediaType.APPLICATION_JSON).content("{}"))
+                .andExpect(status().isOk());
+
+        var systemAdminJwt = jwt().jwt(token -> token.subject("it-system-admin"))
+                .authorities(List.of(new SimpleGrantedAuthority("ROLE_SYSTEM_ADMIN")));
+        String createdKeycloakId = UUID.nameUUIDFromBytes(("it-created-" + fixture.suffix()).getBytes(java.nio.charset.StandardCharsets.UTF_8)).toString();
+        org.mockito.Mockito.when(keycloakUserService.createUser(
+                org.mockito.ArgumentMatchers.any(UserCreateRequest.class),
+                org.mockito.ArgumentMatchers.eq("Admin-created"), org.mockito.ArgumentMatchers.eq("Coach")))
+                .thenReturn(createdKeycloakId);
+        String globalCoachCreateJson = mockMvc.perform(post("/api/v1/coaches/create-coach").with(systemAdminJwt)
+                        .contentType(MediaType.APPLICATION_JSON).content(coachCreateJson))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
+        JsonNode createdCoach = objectMapper.readTree(globalCoachCreateJson).path("data");
+        UUID createdCoachId = UUID.fromString(createdCoach.path("coach_id").asString());
+        UUID createdCoachUserId = UUID.fromString(createdCoach.path("user_response").path("user_id").asString());
+        mockMvc.perform(patch("/api/v1/coaches/update-coach-by-id/{coachId}", fixture.otherCoachId())
+                        .with(systemAdminJwt).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"first_name\":\"Global change\"}"))
+                .andExpect(status().isOk());
+        assertEquals("Global change", jdbcTemplate.queryForObject("""
+                select u.first_name from users u join coaches c using (user_id) where c.coach_id = ?
+                """, String.class, fixture.otherCoachId()));
+        assertEquals("ACTIVE", jdbcTemplate.queryForObject(
+                "select status from coach_assignments where coach_assignment_id = ?", String.class,
+                fixture.otherCoachAssignmentId()));
+        mockMvc.perform(patch("/api/v1/coaches/update-coach-status-by-id/{coachId}/ACTIVE", fixture.otherCoachId())
+                        .with(systemAdminJwt))
+                .andExpect(status().isOk());
+        mockMvc.perform(delete("/api/v1/coaches/delete-coach-by-id/{coachId}", createdCoachId)
+                        .with(systemAdminJwt))
+                .andExpect(status().isOk());
+        assertEquals(0, jdbcTemplate.queryForObject("select count(*) from coaches where coach_id = ?",
+                Integer.class, createdCoachId));
+        assertEquals(0, jdbcTemplate.queryForObject("select count(*) from users where user_id = ?",
+                Integer.class, createdCoachUserId));
+
         String recoveredJson = mockMvc.perform(get("/api/v1/players/{playerId}/evaluations/{evaluationId}",
                         fixture.playerId(), evaluationId).with(coachJwt))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
         JsonNode recovered = objectMapper.readTree(recoveredJson).path("data");
         assertEquals(created.path("evaluation_id").asString(), recovered.path("evaluation_id").asString());
         assertEquals(created.path("results"), recovered.path("results"));
+
+        TemplateData optionalLateralityTemplate = new TransactionTemplate(transactionManager).execute(status -> {
+            EvaluationTemplateEntity template = entityManager.createQuery("""
+                    select t from EvaluationTemplateEntity t where t.code = 'PASE_RECEPCION'
+                    and t.isOfficial = true and t.status = :active
+                    """, EvaluationTemplateEntity.class)
+                    .setParameter("active", EvaluationTemplateStatus.ACTIVE).getSingleResult();
+            List<EvaluationCriterionEntity> criteria = entityManager.createQuery("""
+                    select c from EvaluationCriterionEntity c where c.template.templateId = :templateId
+                    order by c.displayOrder
+                    """, EvaluationCriterionEntity.class)
+                    .setParameter("templateId", template.getTemplateId()).getResultList();
+            return new TemplateData(template.getTemplateId(), template.getVersion(), criteria);
+        });
+        assertFalse(optionalLateralityTemplate.criteria().stream()
+                .noneMatch(criterion -> "OPTIONAL".equals(criterion.getLateralityMode())));
+        for (String side : List.of("LEFT", "RIGHT")) {
+            Map<String, Object> sideRequest = evaluationRequest(optionalLateralityTemplate.templateId(),
+                    optionalLateralityTemplate.version(), optionalLateralityTemplate.criteria(), side);
+            String sideCreatedJson = mockMvc.perform(post("/api/v1/players/{playerId}/evaluations", fixture.playerId())
+                            .with(coachJwt).contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(sideRequest)))
+                    .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
+            JsonNode sideCreated = objectMapper.readTree(sideCreatedJson).path("data");
+            UUID sideEvaluationId = UUID.fromString(sideCreated.path("evaluation_id").asString());
+            JsonNode optionalResult = findResultWithLateralityMode(sideCreated.path("results"),
+                    optionalLateralityTemplate.criteria(), "OPTIONAL");
+            assertEquals(side, optionalResult.path("laterality").asString());
+            String sideRecoveredJson = mockMvc.perform(get("/api/v1/players/{playerId}/evaluations/{evaluationId}",
+                            fixture.playerId(), sideEvaluationId).with(coachJwt))
+                    .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+            JsonNode recoveredOptionalResult = findResultWithLateralityMode(
+                    objectMapper.readTree(sideRecoveredJson).path("data").path("results"),
+                    optionalLateralityTemplate.criteria(), "OPTIONAL");
+            assertEquals(side, recoveredOptionalResult.path("laterality").asString());
+            assertEquals(1, jdbcTemplate.queryForObject(
+                    "select count(*) from evaluations where evaluation_id = ?", Integer.class, sideEvaluationId));
+        }
 
         var sameAcademyCoachJwt = jwt().jwt(token -> token.subject(fixture.sameAcademyCoachSubject()))
                 .authorities(List.of(new SimpleGrantedAuthority("ROLE_COACH")));
@@ -188,54 +335,53 @@ class EvaluationHttpPostgresIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON).content(requestJson))
                 .andExpect(status().isForbidden());
 
-        Map<String, Object> missingRequired = new HashMap<>(request);
-        List<Map<String, Object>> incompleteResults = new ArrayList<>((List<Map<String, Object>>) request.get("results"));
+        ObjectNode missingRequired = copyRequest(requestJson);
+        ArrayNode incompleteResults = checkedResults(missingRequired);
         EvaluationCriterionEntity mandatory = fixture.criteria().stream()
                 .filter(c -> c.isActiveByDefault() && c.isScored()).findFirst().orElseThrow();
-        incompleteResults.removeIf(result -> mandatory.getCriterionId().equals(result.get("criterion_id")));
-        missingRequired.put("results", incompleteResults);
+        for (int i = incompleteResults.size() - 1; i >= 0; i--) {
+            ObjectNode result = checkedObject(incompleteResults.get(i), "results[" + i + "]");
+            if (mandatory.getCriterionId().toString().equals(result.path("criterion_id").asString())) {
+                incompleteResults.remove(i);
+            }
+        }
         assertRejectedWithoutPersistence(fixture, missingRequired, 400);
 
-        Map<String, Object> foreignCriterion = new HashMap<>(request);
-        List<Map<String, Object>> wrongCriteria = new ArrayList<>((List<Map<String, Object>>) request.get("results"));
-        Map<String, Object> wrongCriterionResult = new HashMap<>(wrongCriteria.get(0));
-        wrongCriterionResult.put("criterion_id", UUID.randomUUID());
-        wrongCriteria.set(0, wrongCriterionResult);
-        foreignCriterion.put("results", wrongCriteria);
+        ObjectNode foreignCriterion = copyRequest(requestJson);
+        ArrayNode wrongCriteria = checkedResults(foreignCriterion);
+        checkedObject(wrongCriteria.get(0), "results[0]").put("criterion_id", UUID.randomUUID().toString());
         assertRejectedWithoutPersistence(fixture, foreignCriterion, 400);
 
-        Map<String, Object> outOfRange = new HashMap<>(request);
-        List<Map<String, Object>> invalidValues = new ArrayList<>((List<Map<String, Object>>) request.get("results"));
+        ObjectNode outOfRange = copyRequest(requestJson);
+        ArrayNode invalidValues = checkedResults(outOfRange);
         int timedResult = -1;
         for (int i = 0; i < fixture.criteria().size(); i++) {
             if ("TIME".equals(fixture.criteria().get(i).getMetricType())) { timedResult = i; break; }
         }
         if (timedResult >= 0) {
-            Map<String, Object> invalidTimedResult = new HashMap<>(invalidValues.get(timedResult));
-            invalidTimedResult.put("raw_value", new BigDecimal("-1"));
-            invalidValues.set(timedResult, invalidTimedResult);
-            outOfRange.put("results", invalidValues);
+            checkedObject(invalidValues.get(timedResult), "results[" + timedResult + "]")
+                    .put("raw_value", new BigDecimal("-1"));
             assertRejectedWithoutPersistence(fixture, outOfRange, 400);
         }
 
-        Map<String, Object> invalidObservation = new HashMap<>(request);
-        List<Map<String, Object>> invalidObservationResults = new ArrayList<>((List<Map<String, Object>>) request.get("results"));
+        ObjectNode invalidObservation = copyRequest(requestJson);
+        ArrayNode invalidObservationResults = checkedResults(invalidObservation);
         int observedResult = -1;
         for (int i = 0; i < invalidObservationResults.size(); i++) {
-            if (invalidObservationResults.get(i).containsKey("observations")) { observedResult = i; break; }
+            if (invalidObservationResults.get(i).has("observations")) { observedResult = i; break; }
         }
         if (observedResult >= 0) {
-            Map<String, Object> result = new HashMap<>(invalidObservationResults.get(observedResult));
-            result.put("observations", List.of(Map.of("sequence", 1, "valid", true)));
-            invalidObservationResults.set(observedResult, result);
-            invalidObservation.put("results", invalidObservationResults);
+            ArrayNode invalidObservations = objectMapper.createArrayNode();
+            invalidObservations.addObject().put("sequence", 1).put("valid", true);
+            checkedObject(invalidObservationResults.get(observedResult), "results[" + observedResult + "]")
+                    .set("observations", invalidObservations);
             assertRejectedWithoutPersistence(fixture, invalidObservation, 400);
         }
 
-        Map<String, Object> nonexistentTemplate = new HashMap<>(request);
-        nonexistentTemplate.put("template_id", UUID.randomUUID());
+        ObjectNode nonexistentTemplate = copyRequest(requestJson);
+        nonexistentTemplate.put("template_id", UUID.randomUUID().toString());
         assertRejectedWithoutPersistence(fixture, nonexistentTemplate, 404);
-        assertRejectedWithoutPersistence(fixture, request, 404, UUID.randomUUID());
+        assertRejectedWithoutPersistence(fixture, copyRequest(requestJson), 404, UUID.randomUUID());
 
         assertEquals(0, jdbcTemplate.queryForObject("""
                 select count(*) from evaluation_criteria c join evaluation_templates t using (template_id)
@@ -247,6 +393,100 @@ class EvaluationHttpPostgresIntegrationTest {
     private void assertRejectedWithoutPersistence(Fixture fixture, Map<String, Object> request,
             int expectedStatus) throws Exception {
         assertRejectedWithoutPersistence(fixture, request, expectedStatus, fixture.playerId());
+    }
+
+    private void assertRejectedWithoutPersistence(Fixture fixture, JsonNode request, int expectedStatus)
+            throws Exception {
+        assertRejectedWithoutPersistence(fixture, request, expectedStatus, fixture.playerId());
+    }
+
+    private void assertRejectedWithoutPersistence(Fixture fixture, JsonNode request, int expectedStatus,
+            UUID playerId) throws Exception {
+        int before = jdbcTemplate.queryForObject("select count(*) from evaluations", Integer.class);
+        mockMvc.perform(post("/api/v1/players/{playerId}/evaluations", playerId)
+                        .with(jwt().jwt(token -> token.subject(fixture.coachSubject()))
+                                .authorities(List.of(new SimpleGrantedAuthority("ROLE_COACH"))))
+                        .contentType(MediaType.APPLICATION_JSON).content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().is(expectedStatus));
+        assertEquals(before, jdbcTemplate.queryForObject("select count(*) from evaluations", Integer.class));
+    }
+
+    private ObjectNode copyRequest(String requestJson) throws Exception {
+        JsonNode parsed = objectMapper.readTree(requestJson);
+        if (!(parsed instanceof ObjectNode objectNode)) {
+            throw new AssertionError("Evaluation request must be a JSON object");
+        }
+        ObjectNode copy = objectNode.deepCopy();
+        checkedResults(copy);
+        return copy;
+    }
+
+    private ArrayNode checkedResults(ObjectNode request) {
+        JsonNode resultsNode = request.get("results");
+        if (!(resultsNode instanceof ArrayNode results)) {
+            throw new AssertionError("Evaluation request field 'results' must be an array");
+        }
+        for (int i = 0; i < results.size(); i++) {
+            ObjectNode result = checkedObject(results.get(i), "results[" + i + "]");
+            JsonNode criterionId = result.get("criterion_id");
+            if (criterionId == null || !criterionId.isString()) {
+                throw new AssertionError("results[" + i + "].criterion_id must be a UUID string");
+            }
+            try {
+                UUID.fromString(criterionId.asString());
+            } catch (IllegalArgumentException invalidUuid) {
+                throw new AssertionError("results[" + i + "].criterion_id must be a UUID string", invalidUuid);
+            }
+            for (String field : List.of("raw_value", "successes", "opportunities", "error_count", "level")) {
+                JsonNode value = result.get(field);
+                if (value != null && !value.isNull() && !value.isNumber()) {
+                    throw new AssertionError("results[" + i + "]." + field + " must be numeric");
+                }
+            }
+            for (String field : List.of("laterality", "comment")) {
+                JsonNode value = result.get(field);
+                if (value != null && !value.isNull() && !value.isString()) {
+                    throw new AssertionError("results[" + i + "]." + field + " must be text");
+                }
+            }
+            JsonNode observationsNode = result.get("observations");
+            if (observationsNode == null || observationsNode.isNull()) continue;
+            if (!(observationsNode instanceof ArrayNode observations)) {
+                throw new AssertionError("results[" + i + "].observations must be an array");
+            }
+            for (int j = 0; j < observations.size(); j++) {
+                ObjectNode observation = checkedObject(observations.get(j),
+                        "results[" + i + "].observations[" + j + "]");
+                for (String field : List.of("sequence", "level")) {
+                    JsonNode value = observation.get(field);
+                    if (value != null && !value.isNull() && !value.isIntegralNumber()) {
+                        throw new AssertionError("observation field '" + field + "' must be an integer");
+                    }
+                }
+                JsonNode value = observation.get("value");
+                if (value != null && !value.isNull() && !value.isNumber()) {
+                    throw new AssertionError("observation field 'value' must be numeric");
+                }
+                for (String field : List.of("success", "valid")) {
+                    JsonNode booleanValue = observation.get(field);
+                    if (booleanValue != null && !booleanValue.isNull() && !booleanValue.isBoolean()) {
+                        throw new AssertionError("observation field '" + field + "' must be boolean");
+                    }
+                }
+                JsonNode note = observation.get("note");
+                if (note != null && !note.isNull() && !note.isString()) {
+                    throw new AssertionError("observation field 'note' must be text");
+                }
+            }
+        }
+        return results;
+    }
+
+    private ObjectNode checkedObject(JsonNode value, String location) {
+        if (!(value instanceof ObjectNode objectNode)) {
+            throw new AssertionError(location + " must be a JSON object");
+        }
+        return objectNode;
     }
 
     private void assertRejectedWithoutPersistence(Fixture fixture, Map<String, Object> request,
@@ -350,8 +590,10 @@ class EvaluationHttpPostgresIntegrationTest {
                     "select r from CoachRoleEntity r where r.coachRoleCode = :code", CoachRoleEntity.class)
                     .setParameter("code", CoachRoleCode.HEAD_COACH).getSingleResult();
             var start = LocalDate.now().minusDays(1);
-            entityManager.persist(CoachAssignmentEntity.builder().coach(coach).academyCategory(academyCategory)
-                    .coachRole(role).startDate(start).status(CoachAssignmentStatus.ACTIVE).build());
+            CoachAssignmentEntity ownCoachAssignment = CoachAssignmentEntity.builder().coach(coach)
+                    .academyCategory(academyCategory).coachRole(role).startDate(start)
+                    .status(CoachAssignmentStatus.ACTIVE).build();
+            entityManager.persist(ownCoachAssignment);
             entityManager.persist(CoachAssignmentEntity.builder().coach(sameAcademyCoach)
                     .academyCategory(academyCategory).coachRole(role).startDate(start)
                     .status(CoachAssignmentStatus.ACTIVE).build());
@@ -366,9 +608,10 @@ class EvaluationHttpPostgresIntegrationTest {
                     .endDate(LocalDate.now().minusDays(1)).status(CoachAssignmentStatus.ACTIVE).build());
             entityManager.persist(PlayerAssignmentEntity.builder().player(player).academyCategory(academyCategory)
                     .startDate(start).status(PlayerAssignmentStatus.ACTIVE).build());
-            entityManager.persist(CoachAssignmentEntity.builder().coach(otherCoach)
+            CoachAssignmentEntity otherCoachAssignment = CoachAssignmentEntity.builder().coach(otherCoach)
                     .academyCategory(otherAcademyCategory).coachRole(role).startDate(start)
-                    .status(CoachAssignmentStatus.ACTIVE).build());
+                    .status(CoachAssignmentStatus.ACTIVE).build();
+            entityManager.persist(otherCoachAssignment);
             entityManager.persist(PlayerAssignmentEntity.builder().player(otherPlayer)
                     .academyCategory(otherAcademyCategory).startDate(start)
                     .status(PlayerAssignmentStatus.ACTIVE).build());
@@ -402,11 +645,13 @@ class EvaluationHttpPostgresIntegrationTest {
             entityManager.persist(PlayerAssignmentEntity.builder().player(categoryPlayer)
                     .academyCategory(otherCategory).startDate(start).status(PlayerAssignmentStatus.ACTIVE).build());
             entityManager.flush();
-            return new Fixture(coachUser.getKeycloakId(), adminUser.getKeycloakId(), otherCoachUser.getKeycloakId(),
+            return new Fixture(suffix, coachUser.getUserId(), coachUser.getKeycloakId(), playerUser.getKeycloakId(),
+                    otherPlayerUser.getKeycloakId(), adminUser.getKeycloakId(), otherCoachUser.getKeycloakId(),
                     sameAcademyCoachUser.getKeycloakId(), futureCoachUser.getKeycloakId(),
                     inactiveCoachUser.getKeycloakId(), expiredCoachUser.getKeycloakId(),
                     player.getPlayerId(),
                     otherPlayer.getPlayerId(), categoryPlayer.getPlayerId(), otherCoach.getCoachId(), academy.getAcademyId(),
+                    ownCoachAssignment.getCoachAssignmentId(), otherCoachAssignment.getCoachAssignmentId(),
                     template.getTemplateId(), template.getVersion(), criteria);
         });
     }
@@ -418,9 +663,16 @@ class EvaluationHttpPostgresIntegrationTest {
     }
 
     private Map<String, Object> evaluationRequest(Fixture fixture) {
+        int observations = fixture.criteria().stream().map(EvaluationCriterionEntity::getAttemptsCount)
+                .filter(java.util.Objects::nonNull).mapToInt(Integer::intValue).sum();
+        fixture.setObservationCount(observations);
+        return evaluationRequest(fixture.templateId(), fixture.templateVersion(), fixture.criteria(), "NONE");
+    }
+
+    private Map<String, Object> evaluationRequest(UUID templateId, Integer templateVersion,
+            List<EvaluationCriterionEntity> criteria, String optionalLaterality) {
         List<Map<String, Object>> results = new ArrayList<>();
-        int observations = 0;
-        for (EvaluationCriterionEntity criterion : fixture.criteria()) {
+        for (EvaluationCriterionEntity criterion : criteria) {
             Map<String, Object> result = new HashMap<>();
             result.put("criterion_id", criterion.getCriterionId());
             String type = criterion.getMetricType();
@@ -432,7 +684,12 @@ class EvaluationHttpPostgresIntegrationTest {
             }
             if ("ERROR_COUNT".equals(type)) result.put("error_count", 0);
             if ("RUBRIC".equals(type) || "ANCHORED_SCALE".equals(type)) result.put("level", criterion.getScaleMin());
-            result.put("laterality", "REQUIRED".equals(criterion.getLateralityMode()) ? "LEFT" : "NONE");
+            String laterality = switch (criterion.getLateralityMode()) {
+                case "REQUIRED" -> "LEFT";
+                case "OPTIONAL" -> optionalLaterality;
+                default -> "NONE";
+            };
+            result.put("laterality", laterality);
             if (criterion.getAttemptsCount() != null) {
                 List<Map<String, Object>> attempts = new ArrayList<>();
                 for (int i = 1; i <= criterion.getAttemptsCount(); i++) {
@@ -445,18 +702,36 @@ class EvaluationHttpPostgresIntegrationTest {
                     else attempt.put("level", criterion.getScaleMin());
                     attempts.add(attempt);
                 }
-                observations += attempts.size();
                 result.put("observations", attempts);
             }
             results.add(result);
         }
-        fixture.setObservationCount(observations);
-        return Map.of("template_id", fixture.templateId(), "template_version", fixture.templateVersion(),
+        return Map.of("template_id", templateId, "template_version", templateVersion,
                 "results", results, "strengths", "Fast start", "improvement_areas", "Keep posture", "general_comment", "");
     }
 
+    private JsonNode findResultWithLateralityMode(JsonNode results, List<EvaluationCriterionEntity> criteria,
+            String lateralityMode) {
+        if (!results.isArray()) throw new AssertionError("Evaluation response results must be an array");
+        for (EvaluationCriterionEntity criterion : criteria) {
+            if (!lateralityMode.equals(criterion.getLateralityMode())) continue;
+            for (JsonNode result : results) {
+                if (criterion.getCriterionId().toString().equals(result.path("criterion_id").asString())) {
+                    return result;
+                }
+            }
+        }
+        throw new AssertionError("No result found for laterality mode " + lateralityMode);
+    }
+
+    private record TemplateData(UUID templateId, Integer version, List<EvaluationCriterionEntity> criteria) {}
+
     private static final class Fixture {
+        private final String suffix;
+        private final UUID coachUserId;
         private final String coachSubject;
+        private final String playerSubject;
+        private final String otherPlayerSubject;
         private final String adminSubject;
         private final String unassignedCoachSubject;
         private final String sameAcademyCoachSubject;
@@ -468,16 +743,25 @@ class EvaluationHttpPostgresIntegrationTest {
         private final UUID otherCategoryPlayerId;
         private final UUID otherCoachId;
         private final UUID academyId;
+        private final UUID ownCoachAssignmentId;
+        private final UUID otherCoachAssignmentId;
         private final UUID templateId;
         private final Integer templateVersion;
         private final List<EvaluationCriterionEntity> criteria;
         private int observationCount;
-        private Fixture(String coachSubject, String adminSubject, String unassignedCoachSubject,
+        private Fixture(String suffix, UUID coachUserId, String coachSubject, String playerSubject,
+                String otherPlayerSubject,
+                String adminSubject, String unassignedCoachSubject,
                 String sameAcademyCoachSubject, String futureCoachSubject, String inactiveCoachSubject,
                 String expiredCoachSubject, UUID playerId, UUID otherPlayerId, UUID otherCategoryPlayerId,
-                UUID otherCoachId, UUID academyId, UUID templateId, Integer templateVersion,
+                UUID otherCoachId, UUID academyId, UUID ownCoachAssignmentId, UUID otherCoachAssignmentId,
+                UUID templateId, Integer templateVersion,
                 List<EvaluationCriterionEntity> criteria) {
+            this.suffix = suffix;
+            this.coachUserId = coachUserId;
             this.coachSubject = coachSubject;
+            this.playerSubject = playerSubject;
+            this.otherPlayerSubject = otherPlayerSubject;
             this.adminSubject = adminSubject;
             this.unassignedCoachSubject = unassignedCoachSubject;
             this.sameAcademyCoachSubject = sameAcademyCoachSubject;
@@ -489,11 +773,17 @@ class EvaluationHttpPostgresIntegrationTest {
             this.otherCategoryPlayerId = otherCategoryPlayerId;
             this.otherCoachId = otherCoachId;
             this.academyId = academyId;
+            this.ownCoachAssignmentId = ownCoachAssignmentId;
+            this.otherCoachAssignmentId = otherCoachAssignmentId;
             this.templateId = templateId;
             this.templateVersion = templateVersion;
             this.criteria = criteria;
         }
         String coachSubject() { return coachSubject; }
+        String playerSubject() { return playerSubject; }
+        String otherPlayerSubject() { return otherPlayerSubject; }
+        String suffix() { return suffix; }
+        UUID coachUserId() { return coachUserId; }
         String adminSubject() { return adminSubject; }
         String unassignedCoachSubject() { return unassignedCoachSubject; }
         String sameAcademyCoachSubject() { return sameAcademyCoachSubject; }
@@ -505,6 +795,8 @@ class EvaluationHttpPostgresIntegrationTest {
         UUID otherCategoryPlayerId() { return otherCategoryPlayerId; }
         UUID otherCoachId() { return otherCoachId; }
         UUID academyId() { return academyId; }
+        UUID ownCoachAssignmentId() { return ownCoachAssignmentId; }
+        UUID otherCoachAssignmentId() { return otherCoachAssignmentId; }
         UUID templateId() { return templateId; }
         Integer templateVersion() { return templateVersion; }
         List<EvaluationCriterionEntity> criteria() { return criteria; }

@@ -281,4 +281,22 @@ class AcademyAccessServiceTest {
                 () -> academyAccessService.requireAuthenticatedPlayerId(token("kc-player", "ROLE_PLAYER")));
         verifyNoInteractions(playerRepository);
     }
+
+    @Test
+    void academyAdminCannotChangeGlobalCoachAccount() {
+        UUID coachUserId = UUID.randomUUID();
+        when(coachRepository.findByUser_UserId(coachUserId))
+                .thenReturn(Optional.of(com.dvillacinda.canteragt.coach.entity.CoachEntity.builder().build()));
+
+        assertThrows(UnauthorizedAccessException.class, () -> academyAccessService
+                .requireGlobalCoachAccountMutationAccess(token("kc-admin", "ROLE_ACADEMY_ADMIN"), coachUserId));
+    }
+
+    @Test
+    void systemAdminMayChangeGlobalCoachAccount() {
+        academyAccessService.requireGlobalCoachAccountMutationAccess(
+                token("kc-system-admin", "ROLE_SYSTEM_ADMIN"), UUID.randomUUID());
+
+        verifyNoInteractions(coachRepository);
+    }
 }
