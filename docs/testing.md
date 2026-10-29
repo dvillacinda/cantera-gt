@@ -28,8 +28,8 @@ its signature and issuer with Spring's production `JwtDecoder` and role converte
 `KEYCLOAK_ISSUER_URL`, `KEYCLOAK_ADMIN_CLIENT_ID`, and `KEYCLOAK_ADMIN_CLIENT_SECRET` are present; otherwise
 JUnit marks only that external integration test skipped. It does not create users or modify realm state.
 
-`EvaluationHttpPostgresIntegrationTest` runs against the configured PostgreSQL database. Use a disposable,
-isolated database with the normal application environment variables set; the application applies Flyway migrations
+`EvaluationHttpPostgresIntegrationTest` runs against the configured PostgreSQL database. Use the isolated,
+disposable `postgres-test` Compose service described in [dev-environment.md](dev-environment.md); the application applies Flyway migrations
 and the test inserts coach/player fixtures, evaluates a seeded template over MockMvc, verifies persisted evaluation,
 result, and observation rows, and checks later retrieval, cross-scope denials, invalid versions, missing required
 criteria, foreign criteria, invalid metric values/observations, and missing resources without partial inserts. Its
@@ -44,10 +44,25 @@ It also verifies `/api/v1/players/me` resolves only the JWT subject's profile an
 fields, and checks academy-admin denial on global coach/user mutations plus academy-scoped assignment updates.
 
 ```powershell
+docker compose --profile test up -d postgres-test
+```
+
+Load `.env` into the Maven process, then override the application database variables so the integration test uses port 5433 and `cantera_gt_test`:
+
+```powershell
+Get-Content .env | ForEach-Object {
+    if ($_ -match '^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)\s*$' -and $_ -notmatch '^\s*#') {
+        Set-Item "Env:$($matches[1])" $matches[2].Trim('"', "'")
+    }
+}
+$env:BACKEND_URL = "localhost:5433"
+$env:POSTGRES_DB = "cantera_gt_test"
+$env:POSTGRES_USER = "cantera_gt_test"
+$env:POSTGRES_PASSWORD = "cantera_gt_test"
 mvn "-Dtest=CanteragtApplicationTests,EvaluationHttpPostgresIntegrationTest,KeycloakJwtIntegrationTest" test
 ```
 
-Testcontainers is not configured, and Docker is unavailable in this environment (the Docker engine pipe is
-inaccessible). The PostgreSQL integration test uses a disposable local PostgreSQL database instead. A CI job that
-provisions an isolated database and Keycloak realm remains future work. The focused MVC and unit command does not
-need external services.
+`java-dotenv` only loads `.env` from `CanteragtApplication.main()`; it does not expose those values to Maven tests.
+The command above makes them available to the test process without changing application code. The Keycloak test
+uses the configured realm and confidential client and is skipped when its three required environment variables
+are absent. The focused MVC and unit command does not need external services.

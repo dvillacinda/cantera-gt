@@ -1,5 +1,11 @@
 # CanteraGt
 
+## Local development
+
+Copy `.env.example` to `.env`, configure local credentials and the Keycloak service client, then follow
+[docs/dev-environment.md](docs/dev-environment.md) to start Docker Compose and run integration tests against the
+isolated, disposable PostgreSQL test service.
+
 ## Keycloak user provisioning (MVP)
 
 User accounts created through the Coach and Player endpoints are provisioned in Keycloak first. The API takes the new account's ID from the `Location` header returned by Keycloak and stores it as `users.keycloak_id`. The authenticated caller remains identified separately by the JWT `sub` claim.

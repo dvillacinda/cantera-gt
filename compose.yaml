@@ -21,11 +21,29 @@ services:
       test:
         [
           "CMD-SHELL",
-          "pg_isready -U cantera_gt_admin -d cantera_gt"
+          "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""
         ]
       interval: 10s
       timeout: 5s
       retries: 5
+
+  postgres-test:
+    image: postgres:17-alpine
+    container_name: canteragt-postgres-test
+    profiles: ["test"]
+    environment:
+      POSTGRES_DB: cantera_gt_test
+      POSTGRES_USER: cantera_gt_test
+      POSTGRES_PASSWORD: cantera_gt_test
+    ports:
+      - "5433:5432"
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
   keycloak-postgres:
     image: postgres:17-alpine
