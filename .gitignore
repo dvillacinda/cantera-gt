@@ -36,3 +36,6 @@ build/
 ### Production ###
 .env
 src/main/resources/META-INF/*
+
+### Docs ###
+docs/LLMs/*
