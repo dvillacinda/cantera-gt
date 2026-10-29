@@ -12,6 +12,7 @@ import com.dvillacinda.canteragt.academy_category.entity.AcademyCategoryEntity;
 import com.dvillacinda.canteragt.coach.entity.CoachEntity;
 import com.dvillacinda.canteragt.player.entity.PlayerEntity;
 import com.dvillacinda.canteragt.shared.entity.BaseEntity;
+import com.dvillacinda.canteragt.training_session.entity.TrainingSessionEntity;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -38,6 +39,8 @@ public class EvaluationEntity extends BaseEntity {
     private EvaluationTemplateEntity template;
     @ManyToOne(fetch = FetchType.LAZY, optional = false) @JoinColumn(name = "evaluator_coach_id", nullable = false)
     private CoachEntity evaluator;
+    @ManyToOne(fetch = FetchType.LAZY) @JoinColumn(name = "session_id", referencedColumnName = "session_id")
+    private TrainingSessionEntity trainingSession;
     @Column(name = "evaluation_date", nullable = false) private LocalDateTime evaluationDate;
     @Column(name = "template_score", precision = 6, scale = 2) private BigDecimal templateScore;
     @Column(columnDefinition = "text") private String strengths;
