@@ -41,4 +41,3 @@ src/main/resources/META-INF/*
 docs/LLMs/*
 
 ## Docker ##
-docker/keycloak/realms/canteragt-security-realm.json
