@@ -11,6 +11,7 @@ import org.springframework.data.repository.query.Param;
 
 import com.dvillacinda.canteragt.coach_assignment.entity.CoachAssignmentEntity;
 import com.dvillacinda.canteragt.coach_assignment.enums.CoachAssignmentStatus;
+import com.dvillacinda.canteragt.coach_role.enums.CoachRoleCode;
 
 /** Every lookup is scoped by academy so a caller can never reach another tenant's rows by id. */
 public interface CoachAssignmentRepository extends JpaRepository<CoachAssignmentEntity, UUID> {
@@ -55,6 +56,18 @@ public interface CoachAssignmentRepository extends JpaRepository<CoachAssignment
             """)
     boolean existsCurrentAssignmentForCategory(@Param("coachId") UUID coachId,
             @Param("categoryId") UUID categoryId, @Param("today") LocalDate today);
+
+    @Query("""
+            select count(ca) > 0 from CoachAssignmentEntity ca
+            where ca.coach.coachId = :coachId
+              and ca.academyCategory.academyCategoryId = :academyCategoryId
+              and ca.coachRole.coachRoleCode = :roleCode
+              and ca.status = com.dvillacinda.canteragt.coach_assignment.enums.CoachAssignmentStatus.ACTIVE
+              and ca.startDate <= :today and (ca.endDate is null or ca.endDate >= :today)
+            """)
+    boolean existsCurrentAssignmentForCategoryAndRole(@Param("coachId") UUID coachId,
+            @Param("academyCategoryId") UUID academyCategoryId, @Param("roleCode") CoachRoleCode roleCode,
+            @Param("today") LocalDate today);
 
     @Query("""
             select count(ca) > 0 from CoachAssignmentEntity ca
