@@ -14,6 +14,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -182,6 +184,32 @@ class TrainingSessionSchemaPostgresIntegrationTest {
                 """, String.class, sessionId, fixture.playerId());
 
         assertEquals("PENDING", status);
+    }
+
+    @Test
+    void sessionSearchFiltersByCategoryStatusAndDateInPostgres() {
+        Fixture fixture = createFixture();
+        UUID plannedSessionId = inTransaction(() -> saveSession(
+                fixture, TrainingSessionStatus.PLANNED, null, null).getSessionId());
+        inTransaction(() -> saveSession(
+                fixture, TrainingSessionStatus.IN_PROGRESS, SESSION_DATE.minusHours(1), null));
+
+        var filtered = trainingSessionRepository.searchByCategory(
+                fixture.academyCategoryId(),
+                TrainingSessionStatus.PLANNED,
+                SESSION_DATE,
+                SESSION_DATE,
+                PageRequest.of(0, 20, Sort.by(Sort.Direction.DESC, "sessionDate")));
+        var unfiltered = trainingSessionRepository.searchByCategory(
+                fixture.academyCategoryId(),
+                null,
+                null,
+                null,
+                PageRequest.of(0, 20, Sort.by(Sort.Direction.DESC, "sessionDate")));
+
+        assertEquals(1, filtered.getTotalElements());
+        assertEquals(plannedSessionId, filtered.getContent().getFirst().getSessionId());
+        assertEquals(2, unfiltered.getTotalElements());
     }
 
     private TrainingSessionEntity saveSession(

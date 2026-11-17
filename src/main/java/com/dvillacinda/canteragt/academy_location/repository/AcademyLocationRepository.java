@@ -1,6 +1,7 @@
 package com.dvillacinda.canteragt.academy_location.repository;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import org.springframework.data.jpa.repository.EntityGraph;
@@ -12,4 +13,7 @@ import com.dvillacinda.canteragt.shared.enums.Status;
 public interface AcademyLocationRepository extends JpaRepository<AcademyLocationEntity, UUID> {
     @EntityGraph(attributePaths = "academy")
     List<AcademyLocationEntity> findAllByAcademy_AcademyIdAndStatus(UUID academyId, Status status);
+
+    Optional<AcademyLocationEntity> findByLocationIdAndAcademy_AcademyIdAndStatus(
+            UUID locationId, UUID academyId, Status status);
 }
