@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -21,6 +22,8 @@ import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -332,6 +335,60 @@ class TrainingSessionServiceTest {
         assertEquals(TrainingSessionStatus.CANCELLED, response.status());
         assertEquals(LocalDateTime.of(2026, 11, 17, 10, 0), session.getEndedAt());
         assertThrows(ConflictException.class, () -> service.cancel(SESSION_ID, ACADEMY_ID, authentication));
+    }
+
+    /**
+     * Full lifecycle table (DP-1.2): origin status x action -> resulting status or 409 CONFLICT.
+     * Any transition not listed as allowed must leave the session untouched and never reach the database.
+     */
+    @ParameterizedTest(name = "{0} --{1}--> {2}")
+    @CsvSource({
+            "PLANNED,     START,    IN_PROGRESS",
+            "PLANNED,     COMPLETE, CONFLICT",
+            "PLANNED,     CANCEL,   CANCELLED",
+            "PLANNED,     UPDATE,   PLANNED",
+            "IN_PROGRESS, START,    CONFLICT",
+            "IN_PROGRESS, COMPLETE, COMPLETED",
+            "IN_PROGRESS, CANCEL,   CANCELLED",
+            "IN_PROGRESS, UPDATE,   CONFLICT",
+            "COMPLETED,   START,    CONFLICT",
+            "COMPLETED,   COMPLETE, CONFLICT",
+            "COMPLETED,   CANCEL,   CONFLICT",
+            "COMPLETED,   UPDATE,   CONFLICT",
+            "CANCELLED,   START,    CONFLICT",
+            "CANCELLED,   COMPLETE, CONFLICT",
+            "CANCELLED,   CANCEL,   CONFLICT",
+            "CANCELLED,   UPDATE,   CONFLICT"
+    })
+    void lifecycleTransitionTable(TrainingSessionStatus origin, String action, String expected) {
+        TrainingSessionEntity session = session(origin);
+        if (origin != TrainingSessionStatus.PLANNED) {
+            session.setStartedAt(LocalDateTime.of(2026, 11, 17, 9, 0));
+        }
+        when(trainingSessionRepository.findBySessionIdAndAcademyCategory_Academy_AcademyId(SESSION_ID, ACADEMY_ID))
+                .thenReturn(Optional.of(session));
+        lenient().when(trainingSessionRepository.saveAndFlush(session)).thenReturn(session);
+        lenient().when(sessionPlayerRepository.findPlayerIdsBySessionAndAttendanceStatus(
+                SESSION_ID, CATEGORY_ID, AttendanceStatus.PENDING)).thenReturn(List.of());
+
+        org.junit.jupiter.api.function.ThrowingSupplier<?> call = switch (action) {
+            case "START" -> () -> service.start(SESSION_ID, ACADEMY_ID, authentication);
+            case "COMPLETE" -> () -> service.complete(SESSION_ID, ACADEMY_ID, authentication);
+            case "CANCEL" -> () -> service.cancel(SESSION_ID, ACADEMY_ID, authentication);
+            case "UPDATE" -> () -> service.update(SESSION_ID, ACADEMY_ID,
+                    new TrainingSessionUpdateRequest("Renamed", null, null, null), authentication);
+            default -> throw new IllegalArgumentException(action);
+        };
+
+        if ("CONFLICT".equals(expected)) {
+            assertThrows(ConflictException.class, call::get);
+            assertEquals(origin, session.getStatus());
+            verify(trainingSessionRepository, never()).saveAndFlush(any());
+        } else {
+            org.junit.jupiter.api.Assertions.assertDoesNotThrow(call);
+            assertEquals(TrainingSessionStatus.valueOf(expected), session.getStatus());
+            verify(accessPolicy).requireManageAccess(authentication, ACADEMY_ID, CATEGORY_ID);
+        }
     }
 
     @Test

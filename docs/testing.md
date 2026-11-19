@@ -66,3 +66,34 @@ mvn "-Dtest=CanteragtApplicationTests,EvaluationHttpPostgresIntegrationTest,Keyc
 The command above makes them available to the test process without changing application code. The Keycloak test
 uses the configured realm and confidential client and is skipped when its three required environment variables
 are absent. The focused MVC and unit command does not need external services.
+
+## Training sessions (Sprint 3)
+
+`TrainingSessionServiceTest` covers the session business rules with a fixed `Clock`. `lifecycleTransitionTable`
+is a parameterized table that runs every status (`PLANNED`, `IN_PROGRESS`, `COMPLETED`, `CANCELLED`) against
+every action (start, complete, cancel, edit). It asserts that each invalid transition returns 409 and never
+writes to the database. `TrainingSessionRequestValidationTest` checks Bean Validation and `snake_case` naming.
+It also checks that the client cannot send `created_by_coach_id`.
+
+`TrainingSessionSecurityHttpTest` is an MVC slice test with a mocked service, so it covers only the HTTP layer.
+For all five management routes it checks:
+- 401 without a token, and 403 for PLAYER before the service runs;
+- 403 for a coach who is not HEAD_COACH, and 404 when the `X-Academy-Id` header names another academy, both
+  with the standard error body;
+- 400 when the header is missing or is not a UUID.
+
+The access decisions themselves are covered by `TrainingSessionAccessPolicyTest`.
+
+`TrainingSessionSchemaPostgresIntegrationTest` checks the V8 constraints, uniqueness, and the repository search.
+`TrainingSessionServicePostgresIntegrationTest` runs the service against PostgreSQL and checks two things:
+- **Concurrent start:** two threads start the same session after both have loaded version 0. One wins and the
+  other gets `ConflictException` (HTTP 409).
+- **No N+1 in the listing:** a listing issues at most 2 SQL statements (page and count) with no entity fetches
+  per row, measured with Hibernate `Statistics`.
+
+Both PostgreSQL tests must run against `postgres-test`, using the same environment overrides as the evaluation
+integration test above.
+
+```powershell
+mvn "-Dtest=TrainingSession*Test" test
+```
