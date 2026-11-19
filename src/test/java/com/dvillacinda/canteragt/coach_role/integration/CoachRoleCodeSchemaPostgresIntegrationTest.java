@@ -32,7 +32,7 @@ class CoachRoleCodeSchemaPostgresIntegrationTest {
     @Autowired private TransactionTemplate transactionTemplate;
 
     private static final Set<String> ENUM_CODES =
-            Arrays.stream(CoachRoleCode.values()).map(Enum::name).collect(Collectors.toSet());
+            Arrays.stream(CoachRoleCode.values()).map(code -> code.name()).collect(Collectors.toSet());
 
     @Test
     void enumMatchesTheSeededCoachRoles() {
@@ -45,7 +45,7 @@ class CoachRoleCodeSchemaPostgresIntegrationTest {
     void everySeededRoleMapsToTheEnumThroughJpa() {
         Set<CoachRoleCode> loaded = transactionTemplate.execute(status -> entityManager
                 .createQuery("select r from CoachRoleEntity r", CoachRoleEntity.class)
-                .getResultList().stream().map(CoachRoleEntity::getCoachRoleCode).collect(Collectors.toSet()));
+                .getResultList().stream().map(entity -> entity.getCoachRoleCode()).collect(Collectors.toSet()));
 
         assertEquals(Set.of(CoachRoleCode.values()), loaded);
     }

@@ -1,5 +1,7 @@
 # CanteraGt
 
+**Languages / Idiomas:** [English](README.md) | [Español](README.es.md)
+
 ## Local development
 
 Copy `.env.example` to `.env`, configure local credentials and the Keycloak service client, then follow
@@ -18,7 +20,7 @@ join the session staff. Every route needs the `X-Academy-Id` header.
   - [ADR-0002](docs/adr/ADR-0002-session-permissions.md): session permissions.
   - [ADR-0003](docs/adr/ADR-0003-time-zone-and-clock.md): time zone and `Clock`.
 - [docs/testing.md](docs/testing.md): how to run the unit, HTTP security and PostgreSQL integration tests.
-- [docs/sprint-3-review.md](docs/sprint-3-review.md): sprint summary, demo script and technical debt.
+- [docs/evaluations-api.md](docs/evaluations-api.md): evaluation API contract.
 
 ## Keycloak user provisioning (MVP)
 

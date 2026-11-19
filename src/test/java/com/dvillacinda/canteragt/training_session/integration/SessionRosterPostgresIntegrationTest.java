@@ -33,7 +33,6 @@ import com.dvillacinda.canteragt.training_session.dto.AttendanceUpdateRequest;
 import com.dvillacinda.canteragt.training_session.dto.SessionPlayersAddRequest;
 import com.dvillacinda.canteragt.training_session.enums.AttendanceStatus;
 import com.dvillacinda.canteragt.training_session.enums.TrainingSessionStatus;
-import com.dvillacinda.canteragt.training_session.repository.TrainingSessionRepository;
 import com.dvillacinda.canteragt.training_session.service.SessionRosterService;
 import com.dvillacinda.canteragt.training_session.service.TrainingSessionAccessPolicy;
 import com.dvillacinda.canteragt.training_session.service.TrainingSessionService;
@@ -49,7 +48,6 @@ import jakarta.persistence.EntityManager;
 class SessionRosterPostgresIntegrationTest {
     @Autowired private SessionRosterService rosterService;
     @Autowired private TrainingSessionService sessionService;
-    @Autowired private TrainingSessionRepository trainingSessionRepository;
     @Autowired private EntityManager entityManager;
     @Autowired private TransactionTemplate transactionTemplate;
     @Autowired private JdbcTemplate jdbcTemplate;

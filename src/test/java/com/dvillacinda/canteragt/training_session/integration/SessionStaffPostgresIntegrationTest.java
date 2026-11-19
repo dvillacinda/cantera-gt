@@ -51,7 +51,6 @@ import com.dvillacinda.canteragt.training_session.dto.SessionStaffResponse;
 import com.dvillacinda.canteragt.training_session.dto.TrainingSessionCreateRequest;
 import com.dvillacinda.canteragt.training_session.enums.SessionParticipationType;
 import com.dvillacinda.canteragt.training_session.enums.TrainingSessionStatus;
-import com.dvillacinda.canteragt.training_session.repository.TrainingSessionRepository;
 import com.dvillacinda.canteragt.training_session.service.SessionStaffService;
 import com.dvillacinda.canteragt.training_session.service.TrainingSessionAccessPolicy;
 import com.dvillacinda.canteragt.training_session.service.TrainingSessionService;
@@ -68,7 +67,6 @@ import jakarta.persistence.EntityManager;
 class SessionStaffPostgresIntegrationTest {
     @Autowired private SessionStaffService staffService;
     @Autowired private TrainingSessionService sessionService;
-    @Autowired private TrainingSessionRepository trainingSessionRepository;
     @Autowired private EntityManager entityManager;
     @Autowired private TransactionTemplate transactionTemplate;
     @Autowired private JdbcTemplate jdbcTemplate;
