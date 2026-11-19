@@ -37,34 +37,24 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import com.dvillacinda.canteragt.academy.entity.AcademyEntity;
+import com.dvillacinda.canteragt.support.TestDataFactory;
 import com.dvillacinda.canteragt.academy_category.entity.AcademyCategoryEntity;
-import com.dvillacinda.canteragt.academy_category.enums.AcademyCategoryStatus;
 import com.dvillacinda.canteragt.auth.dto.CurrentUserResponse;
 import com.dvillacinda.canteragt.auth.service.CurrentUserService;
-import com.dvillacinda.canteragt.category.entity.CategoryEntity;
-import com.dvillacinda.canteragt.category.enums.CategoryCode;
 import com.dvillacinda.canteragt.coach.entity.CoachEntity;
-import com.dvillacinda.canteragt.coach_assignment.entity.CoachAssignmentEntity;
 import com.dvillacinda.canteragt.coach_assignment.enums.CoachAssignmentStatus;
-import com.dvillacinda.canteragt.coach_role.entity.CoachRoleEntity;
 import com.dvillacinda.canteragt.coach_role.enums.CoachRoleCode;
-import com.dvillacinda.canteragt.season.entity.SeasonEntity;
-import com.dvillacinda.canteragt.season.enums.SeasonStatus;
-import com.dvillacinda.canteragt.shared.enums.Status;
-import com.dvillacinda.canteragt.shared.enums.UserStatus;
 import com.dvillacinda.canteragt.shared.exception.BadRequestException;
 import com.dvillacinda.canteragt.shared.exception.ConflictException;
 import com.dvillacinda.canteragt.training_session.dto.SessionStaffAddRequest;
 import com.dvillacinda.canteragt.training_session.dto.SessionStaffResponse;
 import com.dvillacinda.canteragt.training_session.dto.TrainingSessionCreateRequest;
-import com.dvillacinda.canteragt.training_session.entity.TrainingSessionEntity;
 import com.dvillacinda.canteragt.training_session.enums.SessionParticipationType;
 import com.dvillacinda.canteragt.training_session.enums.TrainingSessionStatus;
 import com.dvillacinda.canteragt.training_session.repository.TrainingSessionRepository;
 import com.dvillacinda.canteragt.training_session.service.SessionStaffService;
 import com.dvillacinda.canteragt.training_session.service.TrainingSessionAccessPolicy;
 import com.dvillacinda.canteragt.training_session.service.TrainingSessionService;
-import com.dvillacinda.canteragt.user.entity.UserEntity;
 
 import jakarta.persistence.EntityManager;
 
@@ -88,6 +78,7 @@ class SessionStaffPostgresIntegrationTest {
     @MockitoBean private CurrentUserService currentUserService;
 
     private Fixture fx;
+    private TestDataFactory factory;
 
     @BeforeEach
     void setUp() {
@@ -228,56 +219,34 @@ class SessionStaffPostgresIntegrationTest {
     }
 
     private UUID newSession() {
-        return inTransaction(() -> trainingSessionRepository.saveAndFlush(TrainingSessionEntity.builder()
-                .academyCategory(entityManager.getReference(AcademyCategoryEntity.class, fx.academyCategoryId()))
-                .createdByCoach(entityManager.getReference(CoachEntity.class, fx.head()))
-                .name("Staff IT session")
-                .sessionDate(LocalDateTime.now(clock))
-                .status(TrainingSessionStatus.PLANNED)
-                .build()).getSessionId());
+        return inTransaction(() -> factory.session(fx.academyCategoryId(), fx.head(), null, "Staff IT session",
+                LocalDateTime.now(clock), TrainingSessionStatus.PLANNED, null, null).getSessionId());
     }
 
     private Fixture createFixture() {
-        String suffix = UUID.randomUUID().toString().replace("-", "");
+        factory = new TestDataFactory(entityManager);
         LocalDate today = LocalDate.now(clock);
         return inTransaction(() -> {
-            AcademyEntity academy = AcademyEntity.builder()
-                    .name("Staff academy " + suffix).status(Status.ACTIVE).build();
-            entityManager.persist(academy);
-
-            List<CategoryEntity> categories = entityManager.createQuery(
-                    "select c from CategoryEntity c where c.minAge <= 13 and c.maxAge >= 13", CategoryEntity.class)
-                    .setMaxResults(1).getResultList();
-            CategoryEntity category = categories.isEmpty()
-                    ? CategoryEntity.builder().name("Staff category " + suffix)
-                            .minAge(12).maxAge(13).categoryCode(CategoryCode.Sub13).status(Status.ACTIVE).build()
-                    : categories.getFirst();
-            if (category.getCategoryId() == null) entityManager.persist(category);
-
-            AcademyCategoryEntity academyCategory = academyCategory(academy, category, "STAFF_IT_" + suffix, today);
-            AcademyCategoryEntity otherAcademyCategory =
-                    academyCategory(academy, category, "STAFF_IT_OTHER_" + suffix, today);
+            AcademyEntity academy = factory.academy("Staff");
+            AcademyCategoryEntity academyCategory = factory.academyCategory(academy, "STAFF_IT", today);
+            AcademyCategoryEntity otherAcademyCategory = factory.academyCategory(academy, "STAFF_IT_OTHER", today);
 
             // Category role (CoachRoleCode) is the coach's permanent role and is independent of the per-session
             // participation type: an ASSISTANT can join as ASSISTANT/SUPPORT, a FITNESS_COACH typically as SUPPORT,
             // and in tests below even a non-head coach may be recorded as session LEAD.
-            CoachRoleEntity headRole = role(CoachRoleCode.HEAD_COACH);
-            CoachRoleEntity assistantRole = role(CoachRoleCode.ASSISTANT);
-            CoachRoleEntity fitnessRole = role(CoachRoleCode.FITNESS_COACH);
-
-            UUID head = coach("Head", suffix, academyCategory, headRole,
+            UUID head = coach("Head", academyCategory, CoachRoleCode.HEAD_COACH,
                     CoachAssignmentStatus.ACTIVE, today.minusDays(30), null);
-            UUID assistant = coach("Assistant", suffix, academyCategory, assistantRole,
+            UUID assistant = coach("Assistant", academyCategory, CoachRoleCode.ASSISTANT,
                     CoachAssignmentStatus.ACTIVE, today.minusDays(30), null);
-            UUID support = coach("Support", suffix, academyCategory, fitnessRole,
+            UUID support = coach("Support", academyCategory, CoachRoleCode.FITNESS_COACH,
                     CoachAssignmentStatus.ACTIVE, today.minusDays(30), today);
-            UUID expired = coach("Expired", suffix, academyCategory, assistantRole,
+            UUID expired = coach("Expired", academyCategory, CoachRoleCode.ASSISTANT,
                     CoachAssignmentStatus.ACTIVE, today.minusDays(60), today.minusDays(1));
-            UUID ended = coach("Ended", suffix, academyCategory, assistantRole,
+            UUID ended = coach("Ended", academyCategory, CoachRoleCode.ASSISTANT,
                     CoachAssignmentStatus.ENDED, today.minusDays(30), null);
-            UUID future = coach("Future", suffix, academyCategory, assistantRole,
+            UUID future = coach("Future", academyCategory, CoachRoleCode.ASSISTANT,
                     CoachAssignmentStatus.ACTIVE, today.plusDays(1), null);
-            UUID otherCategory = coach("Other", suffix, otherAcademyCategory, assistantRole,
+            UUID otherCategory = coach("Other", otherAcademyCategory, CoachRoleCode.ASSISTANT,
                     CoachAssignmentStatus.ACTIVE, today.minusDays(30), null);
             entityManager.flush();
             return new Fixture(academy.getAcademyId(), academyCategory.getAcademyCategoryId(),
@@ -285,35 +254,10 @@ class SessionStaffPostgresIntegrationTest {
         });
     }
 
-    private AcademyCategoryEntity academyCategory(
-            AcademyEntity academy, CategoryEntity category, String seasonName, LocalDate today) {
-        SeasonEntity season = SeasonEntity.builder().name(seasonName)
-                .startDate(today.minusYears(1)).endDate(today.plusYears(1)).status(SeasonStatus.ACTIVE).build();
-        entityManager.persist(season);
-        AcademyCategoryEntity academyCategory = AcademyCategoryEntity.builder()
-                .academy(academy).category(category).season(season).status(AcademyCategoryStatus.ACTIVE).build();
-        entityManager.persist(academyCategory);
-        return academyCategory;
-    }
-
-    private CoachRoleEntity role(CoachRoleCode code) {
-        return entityManager.createQuery(
-                "select r from CoachRoleEntity r where r.coachRoleCode = :code", CoachRoleEntity.class)
-                .setParameter("code", code).getSingleResult();
-    }
-
-    private UUID coach(String name, String suffix, AcademyCategoryEntity academyCategory, CoachRoleEntity role,
+    private UUID coach(String name, AcademyCategoryEntity academyCategory, CoachRoleCode role,
             CoachAssignmentStatus status, LocalDate start, LocalDate end) {
-        String handle = "staff_it_" + name.toLowerCase() + "_" + suffix;
-        UserEntity user = UserEntity.builder()
-                .keycloakId(UUID.randomUUID().toString()).username(handle).email(handle + "@example.test")
-                .firstName(name).lastName("Staff").status(UserStatus.ACTIVE).build();
-        entityManager.persist(user);
-        CoachEntity coach = CoachEntity.builder().user(user).build();
-        entityManager.persist(coach);
-        entityManager.persist(CoachAssignmentEntity.builder()
-                .coach(coach).academyCategory(academyCategory).coachRole(role).status(status)
-                .startDate(start).endDate(end).build());
+        CoachEntity coach = factory.coach("staff-" + name.toLowerCase(), name);
+        factory.coachAssignment(coach, academyCategory, role, status, start, end);
         return coach.getCoachId();
     }
 

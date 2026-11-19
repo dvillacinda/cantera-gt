@@ -6,6 +6,20 @@ Copy `.env.example` to `.env`, configure local credentials and the Keycloak serv
 [docs/dev-environment.md](docs/dev-environment.md) to start Docker Compose and run integration tests against the
 isolated, disposable PostgreSQL test service.
 
+## Training sessions (Sprint 3)
+
+Head coaches plan and run training sessions in their academy category. A session can be created, edited while
+planned, started, completed or cancelled. Coaches call players and record their attendance, and other coaches can
+join the session staff. Every route needs the `X-Academy-Id` header.
+
+- [docs/sessions-api.md](docs/sessions-api.md): routes, rules and error codes.
+- ADRs:
+  - [ADR-0001](docs/adr/ADR-0001-rest-conventions.md): REST conventions.
+  - [ADR-0002](docs/adr/ADR-0002-session-permissions.md): session permissions.
+  - [ADR-0003](docs/adr/ADR-0003-time-zone-and-clock.md): time zone and `Clock`.
+- [docs/testing.md](docs/testing.md): how to run the unit, HTTP security and PostgreSQL integration tests.
+- [docs/sprint-3-review.md](docs/sprint-3-review.md): sprint summary, demo script and technical debt.
+
 ## Keycloak user provisioning (MVP)
 
 User accounts created through the Coach and Player endpoints are provisioned in Keycloak first. The API takes the new account's ID from the `Location` header returned by Keycloak and stores it as `users.keycloak_id`. The authenticated caller remains identified separately by the JWT `sub` claim.

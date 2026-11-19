@@ -22,34 +22,21 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import com.dvillacinda.canteragt.academy.entity.AcademyEntity;
+import com.dvillacinda.canteragt.support.TestDataFactory;
 import com.dvillacinda.canteragt.academy_category.entity.AcademyCategoryEntity;
-import com.dvillacinda.canteragt.academy_category.enums.AcademyCategoryStatus;
-import com.dvillacinda.canteragt.category.entity.CategoryEntity;
-import com.dvillacinda.canteragt.category.enums.CategoryCode;
 import com.dvillacinda.canteragt.coach.entity.CoachEntity;
 import com.dvillacinda.canteragt.player.entity.PlayerEntity;
-import com.dvillacinda.canteragt.player.enums.Sex;
-import com.dvillacinda.canteragt.player_assignment.entity.PlayerAssignmentEntity;
 import com.dvillacinda.canteragt.player_assignment.enums.PlayerAssignmentStatus;
-import com.dvillacinda.canteragt.position.entity.PositionEntity;
-import com.dvillacinda.canteragt.position.enums.PositionCode;
-import com.dvillacinda.canteragt.position.enums.PositionLine;
-import com.dvillacinda.canteragt.season.entity.SeasonEntity;
-import com.dvillacinda.canteragt.season.enums.SeasonStatus;
-import com.dvillacinda.canteragt.shared.enums.Status;
-import com.dvillacinda.canteragt.shared.enums.UserStatus;
 import com.dvillacinda.canteragt.shared.exception.ConflictException;
 import com.dvillacinda.canteragt.shared.exception.RejectedItemsException;
 import com.dvillacinda.canteragt.training_session.dto.AttendanceUpdateRequest;
 import com.dvillacinda.canteragt.training_session.dto.SessionPlayersAddRequest;
-import com.dvillacinda.canteragt.training_session.entity.TrainingSessionEntity;
 import com.dvillacinda.canteragt.training_session.enums.AttendanceStatus;
 import com.dvillacinda.canteragt.training_session.enums.TrainingSessionStatus;
 import com.dvillacinda.canteragt.training_session.repository.TrainingSessionRepository;
 import com.dvillacinda.canteragt.training_session.service.SessionRosterService;
 import com.dvillacinda.canteragt.training_session.service.TrainingSessionAccessPolicy;
 import com.dvillacinda.canteragt.training_session.service.TrainingSessionService;
-import com.dvillacinda.canteragt.user.entity.UserEntity;
 
 import jakarta.persistence.EntityManager;
 
@@ -71,6 +58,7 @@ class SessionRosterPostgresIntegrationTest {
     @MockitoBean private TrainingSessionAccessPolicy accessPolicy;
 
     private Fixture fx;
+    private TestDataFactory factory;
 
     @BeforeEach
     void setUp() {
@@ -262,107 +250,39 @@ class SessionRosterPostgresIntegrationTest {
     }
 
     private UUID newSession() {
-        return inTransaction(() -> trainingSessionRepository.saveAndFlush(TrainingSessionEntity.builder()
-                .academyCategory(entityManager.getReference(AcademyCategoryEntity.class, fx.academyCategoryId()))
-                .createdByCoach(entityManager.getReference(CoachEntity.class, fx.coachId()))
-                .name("Roster IT session")
-                .sessionDate(LocalDateTime.now(clock))
-                .status(TrainingSessionStatus.PLANNED)
-                .build()).getSessionId());
+        return inTransaction(() -> factory.session(fx.academyCategoryId(), fx.coachId(), null, "Roster IT session",
+                LocalDateTime.now(clock), TrainingSessionStatus.PLANNED, null, null).getSessionId());
     }
 
     private Fixture createFixture() {
-        String suffix = UUID.randomUUID().toString().replace("-", "");
+        factory = new TestDataFactory(entityManager);
         LocalDate today = LocalDate.now(clock);
         return inTransaction(() -> {
-            AcademyEntity academy = AcademyEntity.builder()
-                    .name("Roster academy " + suffix).status(Status.ACTIVE).build();
-            entityManager.persist(academy);
+            AcademyEntity academy = factory.academy("Roster");
+            AcademyCategoryEntity academyCategory = factory.academyCategory(academy, "ROSTER_IT", today);
+            AcademyCategoryEntity otherAcademyCategory = factory.academyCategory(academy, "ROSTER_IT_OTHER", today);
+            CoachEntity coach = factory.coach("roster-coach", "Coach");
 
-            List<CategoryEntity> categories = entityManager.createQuery(
-                    "select c from CategoryEntity c where c.minAge <= 13 and c.maxAge >= 13", CategoryEntity.class)
-                    .setMaxResults(1).getResultList();
-            CategoryEntity category = categories.isEmpty()
-                    ? CategoryEntity.builder().name("Roster category " + suffix)
-                            .minAge(12).maxAge(13).categoryCode(CategoryCode.Sub13).status(Status.ACTIVE).build()
-                    : categories.getFirst();
-            if (category.getCategoryId() == null) entityManager.persist(category);
-
-            SeasonEntity season = SeasonEntity.builder()
-                    .name("ROSTER_IT_" + suffix)
-                    .startDate(today.minusYears(1)).endDate(today.plusYears(1))
-                    .status(SeasonStatus.ACTIVE).build();
-            entityManager.persist(season);
-            SeasonEntity otherSeason = SeasonEntity.builder()
-                    .name("ROSTER_IT_OTHER_" + suffix)
-                    .startDate(today.minusYears(1)).endDate(today.plusYears(1))
-                    .status(SeasonStatus.ACTIVE).build();
-            entityManager.persist(otherSeason);
-
-            AcademyCategoryEntity academyCategory = AcademyCategoryEntity.builder()
-                    .academy(academy).category(category).season(season)
-                    .status(AcademyCategoryStatus.ACTIVE).build();
-            entityManager.persist(academyCategory);
-            AcademyCategoryEntity otherAcademyCategory = AcademyCategoryEntity.builder()
-                    .academy(academy).category(category).season(otherSeason)
-                    .status(AcademyCategoryStatus.ACTIVE).build();
-            entityManager.persist(otherAcademyCategory);
-
-            UserEntity coachUser = user("Coach", suffix);
-            entityManager.persist(coachUser);
-            CoachEntity coach = CoachEntity.builder().user(coachUser).build();
-            entityManager.persist(coach);
-
-            List<PositionEntity> positions = entityManager.createQuery(
-                    "select p from PositionEntity p where p.positionCode = :code", PositionEntity.class)
-                    .setParameter("code", PositionCode.GK).setMaxResults(1).getResultList();
-            PositionEntity position = positions.isEmpty()
-                    ? PositionEntity.builder().positionCode(PositionCode.GK)
-                            .positionLine(PositionLine.GOALKEEPER).name("Roster goalkeeper").build()
-                    : positions.getFirst();
-            if (position.getPositionId() == null) entityManager.persist(position);
-
-            UUID current = player("Current", suffix, position, academyCategory,
-                    PlayerAssignmentStatus.ACTIVE, today.minusDays(30), null);
-            UUID current2 = player("Current2", suffix, position, academyCategory,
-                    PlayerAssignmentStatus.ACTIVE, today.minusDays(30), today);
-            UUID expired = player("Expired", suffix, position, academyCategory,
-                    PlayerAssignmentStatus.ACTIVE, today.minusDays(60), today.minusDays(1));
-            UUID future = player("Future", suffix, position, academyCategory,
-                    PlayerAssignmentStatus.ACTIVE, today.plusDays(1), null);
-            UUID transferred = player("Transferred", suffix, position, academyCategory,
-                    PlayerAssignmentStatus.TRANSFERRED, today.minusDays(30), null);
-            UUID otherCategory = player("Other", suffix, position, otherAcademyCategory,
-                    PlayerAssignmentStatus.ACTIVE, today.minusDays(30), null);
+            UUID current = player("Current", academyCategory, PlayerAssignmentStatus.ACTIVE, today.minusDays(30), null);
+            UUID current2 = player("Current2", academyCategory, PlayerAssignmentStatus.ACTIVE, today.minusDays(30), today);
+            UUID expired = player("Expired", academyCategory, PlayerAssignmentStatus.ACTIVE,
+                    today.minusDays(60), today.minusDays(1));
+            UUID future = player("Future", academyCategory, PlayerAssignmentStatus.ACTIVE, today.plusDays(1), null);
+            UUID transferred = player("Transferred", academyCategory, PlayerAssignmentStatus.TRANSFERRED,
+                    today.minusDays(30), null);
+            UUID otherCategory = player("Other", otherAcademyCategory, PlayerAssignmentStatus.ACTIVE,
+                    today.minusDays(30), null);
             entityManager.flush();
             return new Fixture(academy.getAcademyId(), academyCategory.getAcademyCategoryId(), coach.getCoachId(),
                     current, current2, expired, future, transferred, otherCategory);
         });
     }
 
-    private UUID player(String name, String suffix, PositionEntity position, AcademyCategoryEntity academyCategory,
-            PlayerAssignmentStatus status, LocalDate start, LocalDate end) {
-        UserEntity user = user(name, suffix);
-        entityManager.persist(user);
-        PlayerEntity player = PlayerEntity.builder()
-                .user(user).birthDate(LocalDate.of(2013, 1, 1)).sex(Sex.OTHER).principalPosition(position).build();
-        entityManager.persist(player);
-        entityManager.persist(PlayerAssignmentEntity.builder()
-                .player(player).academyCategory(academyCategory).status(status)
-                .startDate(start).endDate(end).build());
+    private UUID player(String name, AcademyCategoryEntity academyCategory, PlayerAssignmentStatus status,
+            LocalDate start, LocalDate end) {
+        PlayerEntity player = factory.player("roster-" + name.toLowerCase(), name);
+        factory.playerAssignment(player, academyCategory, status, start, end);
         return player.getPlayerId();
-    }
-
-    private UserEntity user(String name, String suffix) {
-        String handle = "roster_it_" + name.toLowerCase() + "_" + suffix;
-        return UserEntity.builder()
-                .keycloakId(UUID.randomUUID().toString())
-                .username(handle)
-                .email(handle + "@example.test")
-                .firstName(name)
-                .lastName("Roster")
-                .status(UserStatus.ACTIVE)
-                .build();
     }
 
     private <T> T inTransaction(Supplier<T> supplier) {

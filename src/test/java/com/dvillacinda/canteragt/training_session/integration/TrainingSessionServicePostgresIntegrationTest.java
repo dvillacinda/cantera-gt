@@ -29,16 +29,10 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import com.dvillacinda.canteragt.academy.entity.AcademyEntity;
+import com.dvillacinda.canteragt.support.TestDataFactory;
 import com.dvillacinda.canteragt.academy_category.entity.AcademyCategoryEntity;
-import com.dvillacinda.canteragt.academy_category.enums.AcademyCategoryStatus;
 import com.dvillacinda.canteragt.academy_location.entity.AcademyLocationEntity;
-import com.dvillacinda.canteragt.category.entity.CategoryEntity;
-import com.dvillacinda.canteragt.category.enums.CategoryCode;
 import com.dvillacinda.canteragt.coach.entity.CoachEntity;
-import com.dvillacinda.canteragt.season.entity.SeasonEntity;
-import com.dvillacinda.canteragt.season.enums.SeasonStatus;
-import com.dvillacinda.canteragt.shared.enums.Status;
-import com.dvillacinda.canteragt.shared.enums.UserStatus;
 import com.dvillacinda.canteragt.shared.exception.ConflictException;
 import com.dvillacinda.canteragt.training_session.dto.TrainingSessionFilter;
 import com.dvillacinda.canteragt.training_session.dto.TrainingSessionResponse;
@@ -47,7 +41,6 @@ import com.dvillacinda.canteragt.training_session.enums.TrainingSessionStatus;
 import com.dvillacinda.canteragt.training_session.repository.TrainingSessionRepository;
 import com.dvillacinda.canteragt.training_session.service.TrainingSessionAccessPolicy;
 import com.dvillacinda.canteragt.training_session.service.TrainingSessionService;
-import com.dvillacinda.canteragt.user.entity.UserEntity;
 
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityManagerFactory;
@@ -69,6 +62,8 @@ class TrainingSessionServicePostgresIntegrationTest {
     @Autowired private TransactionTemplate transactionTemplate;
 
     @MockitoBean private TrainingSessionAccessPolicy accessPolicy;
+
+    private TestDataFactory factory;
 
     @Test
     void concurrentStartLetsExactlyOneWinAndTheOtherGetsConflict() throws Exception {
@@ -148,70 +143,18 @@ class TrainingSessionServicePostgresIntegrationTest {
     }
 
     private TrainingSessionEntity saveSession(Fixture fixture, String name) {
-        return trainingSessionRepository.saveAndFlush(TrainingSessionEntity.builder()
-                .academyCategory(entityManager.getReference(AcademyCategoryEntity.class, fixture.academyCategoryId()))
-                .location(entityManager.getReference(AcademyLocationEntity.class, fixture.locationId()))
-                .createdByCoach(entityManager.getReference(CoachEntity.class, fixture.coachId()))
-                .name(name)
-                .sessionDate(SESSION_DATE)
-                .status(TrainingSessionStatus.PLANNED)
-                .build());
+        return factory.session(fixture.academyCategoryId(), fixture.coachId(), fixture.locationId(), name,
+                SESSION_DATE, TrainingSessionStatus.PLANNED, null, null);
     }
 
     private Fixture createFixture() {
-        String suffix = UUID.randomUUID().toString().replace("-", "");
+        factory = new TestDataFactory(entityManager);
         return inTransaction(() -> {
-            AcademyEntity academy = AcademyEntity.builder()
-                    .name("Session service academy " + suffix)
-                    .status(Status.ACTIVE)
-                    .build();
-            entityManager.persist(academy);
-
-            List<CategoryEntity> matchingCategories = entityManager.createQuery(
-                    "select c from CategoryEntity c where c.minAge <= 13 and c.maxAge >= 13", CategoryEntity.class)
-                    .setMaxResults(1).getResultList();
-            CategoryEntity category = matchingCategories.isEmpty()
-                    ? CategoryEntity.builder().name("Session service category " + suffix)
-                            .minAge(12).maxAge(13).categoryCode(CategoryCode.Sub13).status(Status.ACTIVE).build()
-                    : matchingCategories.getFirst();
-            if (category.getCategoryId() == null) entityManager.persist(category);
-
-            SeasonEntity season = SeasonEntity.builder()
-                    .name("SESSION_SVC_IT_" + suffix)
-                    .startDate(LocalDate.of(2026, 1, 1))
-                    .endDate(LocalDate.of(2027, 1, 1))
-                    .status(SeasonStatus.ACTIVE)
-                    .build();
-            entityManager.persist(season);
-
-            AcademyCategoryEntity academyCategory = AcademyCategoryEntity.builder()
-                    .academy(academy)
-                    .category(category)
-                    .season(season)
-                    .status(AcademyCategoryStatus.ACTIVE)
-                    .build();
-            entityManager.persist(academyCategory);
-
-            AcademyLocationEntity location = AcademyLocationEntity.builder()
-                    .academy(academy)
-                    .name("Service field " + suffix)
-                    .address("Test address")
-                    .status(Status.ACTIVE)
-                    .build();
-            entityManager.persist(location);
-
-            UserEntity coachUser = UserEntity.builder()
-                    .keycloakId(UUID.randomUUID().toString())
-                    .username("session_svc_it_coach_" + suffix)
-                    .email("session_svc_it_coach_" + suffix + "@example.test")
-                    .firstName("Session")
-                    .lastName("coach")
-                    .status(UserStatus.ACTIVE)
-                    .build();
-            entityManager.persist(coachUser);
-
-            CoachEntity coach = CoachEntity.builder().user(coachUser).build();
-            entityManager.persist(coach);
+            AcademyEntity academy = factory.academy("Session service");
+            AcademyCategoryEntity academyCategory =
+                    factory.academyCategory(academy, "SESSION_SVC_IT", LocalDate.of(2026, 6, 1));
+            AcademyLocationEntity location = factory.location(academy, "Service");
+            CoachEntity coach = factory.coach("session-svc-coach", "Session");
             entityManager.flush();
             return new Fixture(academy.getAcademyId(), academyCategory.getAcademyCategoryId(),
                     location.getLocationId(), coach.getCoachId());

@@ -154,3 +154,36 @@ the rule.
 seed and the `coach_roles_code_check` constraint from V6. It also loads every role through JPA. The test exists
 because the enum once said `ASSISTANT_COACH` while the database stored `ASSISTANT`, so seeded rows could not be
 mapped. `TrainingSessionLockTest` covers the shared session row lock used by the roster and staff services.
+
+### End-to-end sessions scenario
+
+`TrainingSessionLifecyclePostgresIntegrationTest` runs the Sprint 3 scenario over HTTP against `postgres-test`. It
+uses the **real** security chain and `TrainingSessionAccessPolicy`: the JWT `sub` is matched to `users.keycloak_id`,
+and only Keycloak's admin API is mocked. It covers:
+- **Full HEAD_COACH flow:** create (the creator becomes LEAD), call 3 players, reject an expired player and an
+  other-category player, add an ASSISTANT to the staff, start, record attendance, a 409 when completing with a
+  `PENDING` player, complete, and a 409 when editing afterwards.
+- **Denials:** ASSISTANT gets 403 on management and 200 on read, a coach of another category gets 404, and PLAYER
+  gets 403.
+- **Concurrent `start` over HTTP:** exactly one 200 and one 409.
+- **Listing:** pagination, `status` and `from`/`to` filters, and isolation between two academies, with every header
+  combination returning 404.
+- **OpenAPI:** all 14 session routes are published at `/api-docs` (dev profile) with a summary.
+
+The regression check for `POST /players/{id}/evaluations` is `EvaluationHttpPostgresIntegrationTest`, which runs in
+the same suite.
+
+### Test data factory
+
+`support/TestDataFactory` builds PostgreSQL fixtures: academy, academy category with its season, location, users,
+coaches and players, their assignments, and sessions. Every unique column carries a random per-factory suffix, so
+tests need no cleanup. `subject(handle)` returns the user's Keycloak id, to use as the JWT subject. The sessions
+integration tests use it. `EvaluationHttpPostgresIntegrationTest` keeps its own fixture on purpose, because it is the
+regression evidence for evaluations.
+
+Run the whole suite against `postgres-test`. It needs no `@Disabled` and skips no tests. `KeycloakJwtIntegrationTest`
+skips itself only when the three Keycloak variables are missing.
+
+```powershell
+mvn -o test   # 256 tests at the end of Sprint 3
+```
