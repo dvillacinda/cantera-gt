@@ -73,4 +73,25 @@ public interface PlayerAssignmentRepository extends JpaRepository<PlayerAssignme
     boolean existsCurrentAssignmentForCategory(@Param("playerId") UUID playerId,
             @Param("academyId") UUID academyId, @Param("categoryId") UUID categoryId,
             @Param("today") LocalDate today);
+
+    /** Players with a current ACTIVE assignment in the academy category on {@code today}. */
+    @Query("""
+            select distinct pa.player.playerId from PlayerAssignmentEntity pa
+            where pa.academyCategory.academyCategoryId = :academyCategoryId
+              and pa.status = com.dvillacinda.canteragt.player_assignment.enums.PlayerAssignmentStatus.ACTIVE
+              and pa.startDate <= :today and (pa.endDate is null or pa.endDate >= :today)
+            """)
+    List<UUID> findCurrentPlayerIdsForCategory(@Param("academyCategoryId") UUID academyCategoryId,
+            @Param("today") LocalDate today);
+
+    /** Subset of {@code playerIds} with a current ACTIVE assignment in the academy category on {@code today}. */
+    @Query("""
+            select distinct pa.player.playerId from PlayerAssignmentEntity pa
+            where pa.academyCategory.academyCategoryId = :academyCategoryId
+              and pa.player.playerId in :playerIds
+              and pa.status = com.dvillacinda.canteragt.player_assignment.enums.PlayerAssignmentStatus.ACTIVE
+              and pa.startDate <= :today and (pa.endDate is null or pa.endDate >= :today)
+            """)
+    List<UUID> findCurrentPlayerIdsForCategoryIn(@Param("academyCategoryId") UUID academyCategoryId,
+            @Param("playerIds") java.util.Collection<UUID> playerIds, @Param("today") LocalDate today);
 }

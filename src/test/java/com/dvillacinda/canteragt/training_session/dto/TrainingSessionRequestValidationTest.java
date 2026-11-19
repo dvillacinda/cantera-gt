@@ -10,7 +10,6 @@ import java.util.UUID;
 import org.junit.jupiter.api.Test;
 
 import com.dvillacinda.canteragt.training_session.enums.TrainingSessionStatus;
-import com.dvillacinda.canteragt.training_session.dto.TrainingSessionResponse;
 import jakarta.validation.Validator;
 import jakarta.validation.Validation;
 import tools.jackson.databind.json.JsonMapper;

@@ -52,6 +52,13 @@ public class GlobalExceptionHandler {
         return build(HttpStatus.CONFLICT, "Conflict", ex.getMessage());
     }
 
+    @ExceptionHandler(RejectedItemsException.class)
+    public ResponseEntity<ErrorResponse> handleRejectedItems(RejectedItemsException ex) {
+        HttpStatus status = ex.getStatus();
+        return ResponseEntity.status(status).body(new ErrorResponse(
+                status.value(), status.getReasonPhrase(), ex.getMessage(), new LinkedHashMap<>(ex.getRejected())));
+    }
+
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<ErrorResponse> handleDataIntegrityViolation(DataIntegrityViolationException ex) {
         // The driver message includes the conflicting values (e.g. emails), so only the constraint name is logged

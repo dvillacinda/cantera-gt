@@ -97,3 +97,30 @@ integration test above.
 ```powershell
 mvn "-Dtest=TrainingSession*Test" test
 ```
+
+### Session roster and attendance
+
+`SessionRosterServiceTest` uses a fixed `Clock` set to Guatemala local time. It covers these rules:
+- only players with a current assignment in the same category can be called;
+- a batch is rejected as a whole and every rejected id gets a reason;
+- a player already in the session gets 409, never 500;
+- the `all_active` shortcut;
+- roster changes only while `PLANNED` or `IN_PROGRESS`;
+- a player can be removed only while attendance is still `PENDING`;
+- attendance can be recorded only while `IN_PROGRESS`.
+
+It also checks that the session row is locked before any roster check.
+
+`SessionRosterSecurityHttpTest` covers the HTTP boundary:
+- 401 without a token, 403 for PLAYER and for a coach who is not HEAD_COACH, and 404 for another academy;
+- batches over 60 rejected with 400 before the service runs;
+- the error body for a rejected batch, which lists ids in `fieldErrors` (id → reason);
+- that the roster body contains no email or Keycloak id.
+
+`SessionRosterPostgresIntegrationTest` runs against `postgres-test` with real dates. It checks that expired,
+future, transferred, and other-category assignments are rejected. It also proves three things on the database:
+- **Whole-batch rollback:** after a rejected batch there are 0 rows and the session version is unchanged.
+- **Duplicates:** adding a player twice returns 409.
+- **No completion with `PENDING` players:** completing with a `PENDING` player returns 409 and lists that player.
+  If a player is being added concurrently, `complete` fails with 409 instead of closing the session. This is
+  the race the session row lock and version bump protect against.
