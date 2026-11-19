@@ -55,6 +55,9 @@ import com.dvillacinda.canteragt.training_session.enums.AttendanceStatus;
 import com.dvillacinda.canteragt.training_session.enums.TrainingSessionStatus;
 import com.dvillacinda.canteragt.training_session.mapper.TrainingSessionMapper;
 import com.dvillacinda.canteragt.training_session.repository.SessionPlayerRepository;
+import com.dvillacinda.canteragt.training_session.repository.SessionStaffRepository;
+import com.dvillacinda.canteragt.training_session.entity.SessionStaffEntity;
+import com.dvillacinda.canteragt.training_session.enums.SessionParticipationType;
 import com.dvillacinda.canteragt.training_session.repository.TrainingSessionRepository;
 
 @ExtendWith(MockitoExtension.class)
@@ -75,6 +78,8 @@ class TrainingSessionServiceTest {
     @Mock
     private SessionPlayerRepository sessionPlayerRepository;
     @Mock
+    private SessionStaffRepository sessionStaffRepository;
+    @Mock
     private CurrentUserService currentUserService;
     @Mock
     private TrainingSessionAccessPolicy accessPolicy;
@@ -91,6 +96,7 @@ class TrainingSessionServiceTest {
                 academyCategoryRepository,
                 academyLocationRepository,
                 sessionPlayerRepository,
+                sessionStaffRepository,
                 currentUserService,
                 accessPolicy,
                 mapper,
@@ -123,6 +129,12 @@ class TrainingSessionServiceTest {
         assertEquals("Technical session", saved.getName());
         assertEquals(LocalDateTime.of(2026, 11, 17, 10, 0), saved.getSessionDate());
         assertEquals(CATEGORY_ID, response.academyCategoryId());
+
+        ArgumentCaptor<SessionStaffEntity> staffCaptor = ArgumentCaptor.forClass(SessionStaffEntity.class);
+        verify(sessionStaffRepository).saveAndFlush(staffCaptor.capture());
+        assertEquals(SessionParticipationType.LEAD, staffCaptor.getValue().getParticipationType());
+        assertEquals(COACH_ID, staffCaptor.getValue().getCoach().getCoachId());
+        assertEquals(saved, staffCaptor.getValue().getTrainingSession());
     }
 
     @Test

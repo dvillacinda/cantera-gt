@@ -39,7 +39,10 @@ import com.dvillacinda.canteragt.training_session.entity.TrainingSessionEntity;
 import com.dvillacinda.canteragt.training_session.enums.AttendanceStatus;
 import com.dvillacinda.canteragt.training_session.enums.TrainingSessionStatus;
 import com.dvillacinda.canteragt.training_session.mapper.TrainingSessionMapper;
+import com.dvillacinda.canteragt.training_session.entity.SessionStaffEntity;
+import com.dvillacinda.canteragt.training_session.enums.SessionParticipationType;
 import com.dvillacinda.canteragt.training_session.repository.SessionPlayerRepository;
+import com.dvillacinda.canteragt.training_session.repository.SessionStaffRepository;
 import com.dvillacinda.canteragt.training_session.repository.TrainingSessionRepository;
 
 import lombok.RequiredArgsConstructor;
@@ -61,6 +64,7 @@ public class TrainingSessionService {
     private final AcademyCategoryRepository academyCategoryRepository;
     private final AcademyLocationRepository academyLocationRepository;
     private final SessionPlayerRepository sessionPlayerRepository;
+    private final SessionStaffRepository sessionStaffRepository;
     private final CurrentUserService currentUserService;
     private final TrainingSessionAccessPolicy accessPolicy;
     private final TrainingSessionMapper mapper;
@@ -98,7 +102,15 @@ public class TrainingSessionService {
                 .notes(request.notes())
                 .version(0L)
                 .build();
-        return mapper.toResponse(trainingSessionRepository.saveAndFlush(session));
+        TrainingSessionEntity saved = trainingSessionRepository.saveAndFlush(session);
+        // DECISION T3.6-B: the creator is registered as LEAD in the same transaction. No assignment re-check:
+        // the creator already passed requireManageAccess for this category.
+        sessionStaffRepository.saveAndFlush(SessionStaffEntity.builder()
+                .trainingSession(saved)
+                .coach(saved.getCreatedByCoach())
+                .participationType(SessionParticipationType.LEAD)
+                .build());
+        return mapper.toResponse(saved);
     }
 
     @Transactional(readOnly = true)

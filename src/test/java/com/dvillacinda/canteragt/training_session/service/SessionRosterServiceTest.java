@@ -58,7 +58,6 @@ import com.dvillacinda.canteragt.training_session.repository.TrainingSessionRepo
 import com.dvillacinda.canteragt.user.entity.UserEntity;
 
 import jakarta.persistence.EntityManager;
-import jakarta.persistence.LockModeType;
 
 @ExtendWith(MockitoExtension.class)
 class SessionRosterServiceTest {
@@ -78,6 +77,7 @@ class SessionRosterServiceTest {
     @Mock private PlayerAssignmentRepository playerAssignmentRepository;
     @Mock private TrainingSessionAccessPolicy accessPolicy;
     @Mock private EntityManager entityManager;
+    @Mock private TrainingSessionLock sessionLock;
     @Mock private Authentication authentication;
 
     private SessionRosterService service;
@@ -90,8 +90,9 @@ class SessionRosterServiceTest {
                 playerAssignmentRepository,
                 accessPolicy,
                 new SessionPlayerMapper("America/Guatemala"),
-                entityManager,
+                entityManager, sessionLock,
                 CLOCK);
+        lenient().when(sessionLock.acquire(any())).thenAnswer(invocation -> invocation.getArgument(0));
         lenient().when(entityManager.getReference(eq(PlayerEntity.class), any()))
                 .thenAnswer(invocation -> PlayerEntity.builder().playerId(invocation.getArgument(1)).build());
     }
@@ -130,10 +131,9 @@ class SessionRosterServiceTest {
         service.addPlayers(SESSION_ID, ACADEMY_ID,
                 new SessionPlayersAddRequest(List.of(PLAYER_A), null), authentication);
 
-        InOrder order = inOrder(accessPolicy, entityManager, sessionPlayerRepository);
+        InOrder order = inOrder(accessPolicy, sessionLock, sessionPlayerRepository);
         order.verify(accessPolicy).requireManageAccess(authentication, ACADEMY_ID, CATEGORY_ID);
-        order.verify(entityManager).refresh(session, LockModeType.PESSIMISTIC_WRITE);
-        order.verify(entityManager).lock(session, LockModeType.PESSIMISTIC_FORCE_INCREMENT);
+        order.verify(sessionLock).acquire(session);
         order.verify(sessionPlayerRepository).findPlayerIdsBySession(SESSION_ID);
     }
 
@@ -273,7 +273,7 @@ class SessionRosterServiceTest {
         service.removePlayer(SESSION_ID, ACADEMY_ID, PLAYER_A, authentication);
 
         verify(sessionPlayerRepository).delete(entry);
-        verify(entityManager).flush();
+        verify(sessionLock).flush();
     }
 
     @ParameterizedTest
@@ -310,7 +310,7 @@ class SessionRosterServiceTest {
 
         assertEquals(AttendanceStatus.LATE, response.attendanceStatus());
         assertEquals(AttendanceStatus.LATE, entry.getAttendanceStatus());
-        verify(entityManager).flush();
+        verify(sessionLock).flush();
     }
 
     @ParameterizedTest

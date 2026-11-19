@@ -124,3 +124,33 @@ future, transferred, and other-category assignments are rejected. It also proves
 - **No completion with `PENDING` players:** completing with a `PENDING` player returns 409 and lists that player.
   If a player is being added concurrently, `complete` fails with 409 instead of closing the session. This is
   the race the session row lock and version bump protect against.
+
+### Session staff
+
+`SessionStaffServiceTest` covers the staff rules with a fixed `Clock`:
+- a coach needs a current assignment in the session's category;
+- a session has only one LEAD, and the session row is locked before that check;
+- a duplicate coach returns 409, never 500;
+- staff changes are allowed only while `PLANNED` or `IN_PROGRESS`;
+- a LEAD cannot be removed while `IN_PROGRESS`, but can be while `PLANNED`.
+
+`TrainingSessionServiceTest` checks that the creator of a session is registered as LEAD.
+
+`SessionStaffSecurityHttpTest` covers the HTTP boundary: 401, 403 for PLAYER and for a coach who is not
+HEAD_COACH, 404 for another academy, body validation, and that the response contains no email or Keycloak id.
+
+`SessionStaffPostgresIntegrationTest` runs against `postgres-test` and checks:
+- the creator is registered as LEAD when the session is created;
+- expired, ended, future, and other-category coach assignments are rejected;
+- a duplicate coach and a second LEAD both return 409;
+- two concurrent LEAD requests leave exactly one LEAD;
+- the LEAD removal rules;
+- that `session_staff` has `created_at` but no `updated_at`.
+
+No database constraint enforces a single LEAD. The concurrent test is what proves the session row lock keeps
+the rule.
+
+`CoachRoleCodeSchemaPostgresIntegrationTest` checks that the `CoachRoleCode` enum matches the `coach_roles`
+seed and the `coach_roles_code_check` constraint from V6. It also loads every role through JPA. The test exists
+because the enum once said `ASSISTANT_COACH` while the database stored `ASSISTANT`, so seeded rows could not be
+mapped. `TrainingSessionLockTest` covers the shared session row lock used by the roster and staff services.

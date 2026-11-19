@@ -12,7 +12,6 @@ import java.util.Set;
 import java.util.UUID;
 
 import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
@@ -36,7 +35,6 @@ import com.dvillacinda.canteragt.training_session.repository.SessionPlayerReposi
 import com.dvillacinda.canteragt.training_session.repository.TrainingSessionRepository;
 
 import jakarta.persistence.EntityManager;
-import jakarta.persistence.LockModeType;
 import lombok.RequiredArgsConstructor;
 
 /**
@@ -61,6 +59,7 @@ public class SessionRosterService {
     private final TrainingSessionAccessPolicy accessPolicy;
     private final SessionPlayerMapper mapper;
     private final EntityManager entityManager;
+    private final TrainingSessionLock sessionLock;
     private final Clock clock;
 
     @Transactional(readOnly = true)
@@ -122,7 +121,7 @@ public class SessionRosterService {
                             + "); only players still PENDING can be removed");
         }
         sessionPlayerRepository.delete(entry);
-        flushVersioned();
+        sessionLock.flush();
     }
 
     public SessionPlayerResponse updateAttendance(
@@ -140,7 +139,7 @@ public class SessionRosterService {
         }
         SessionPlayerEntity entry = findEntry(sessionId, playerId);
         entry.setAttendanceStatus(request.attendanceStatus());
-        flushVersioned();
+        sessionLock.flush();
         return mapper.toResponse(entry);
     }
 
@@ -180,24 +179,9 @@ public class SessionRosterService {
         TrainingSessionEntity session = findSession(sessionId, academyId);
         accessPolicy.requireManageAccess(
                 authentication, academyId, session.getAcademyCategory().getAcademyCategoryId());
-        try {
-            // Reload under a row lock so the status checks below see the latest committed state, then bump the
-            // version so a concurrent optimistic transition (e.g. complete) conflicts instead of interleaving.
-            entityManager.refresh(session, LockModeType.PESSIMISTIC_WRITE);
-            entityManager.lock(session, LockModeType.PESSIMISTIC_FORCE_INCREMENT);
-        } catch (OptimisticLockingFailureException | jakarta.persistence.OptimisticLockException ex) {
-            throw new ConflictException("Training session was modified concurrently; reload and retry");
-        }
-        return session;
+        return sessionLock.acquire(session);
     }
 
-    private void flushVersioned() {
-        try {
-            entityManager.flush();
-        } catch (OptimisticLockingFailureException | jakarta.persistence.OptimisticLockException ex) {
-            throw new ConflictException("Training session was modified concurrently; reload and retry");
-        }
-    }
 
     private TrainingSessionEntity findSession(UUID sessionId, UUID academyId) {
         return trainingSessionRepository.findBySessionIdAndAcademyCategory_Academy_AcademyId(sessionId, academyId)
