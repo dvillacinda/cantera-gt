@@ -50,8 +50,17 @@ inside a session where coaches record evidence for the convened players. Facts v
    - The required metrics are **the event's metrics**, not the template's `activeByDefault` set (fixes R-1).
    - The server derives `session_id` from the event; the client does not send it.
    - Frequency, validity and group-size issues are returned as warnings in the response and do not block.
-   - Database coherence between `evaluations.session_id` and the event's session (R-2) is enforced in V9 only if
-     T4.2 shows the gap is real. V9 is tested on an empty database and on one with V1–V8 data.
+   - Database coherence (T4.2, option B, approved 2026-11-20). The audit
+     (`SessionEvaluationEventSchemaPostgresIntegrationTest`) confirmed R-2, so
+     `V9__session_evaluation_events_integrity.sql` adds:
+     - `evaluations_event_session_fk` plus `evaluations_event_requires_session_check`: an evaluation tied to an
+       event belongs to that event's session;
+     - `evaluations_session_category_fk`: an evaluation tied to a session belongs to that session's category;
+     - `block_order > 0` and the same status/timestamp CHECKs that V8 gave `training_sessions`.
+     V9 aborts, without fixing data, if existing rows are incompatible. `V9MigrationPostgresIntegrationTest`
+     covers V8 data that survives the migration and three abort cases.
+   - These stay in the service by design: removing an event metric (allowed only while the event is `PLANNED`,
+     when no results can exist) and the session/event state required to record evidence.
 4. **Voiding and read access (DP-2.4, option B; partial D-05).**
    - The creator, the category's current `HEAD_COACH` and admins in scope can read an evaluation.
    - The creator and the category's current `HEAD_COACH` can void it. A reason is required (at most 500 characters)
@@ -84,7 +93,7 @@ inside a session where coaches record evidence for the convened players. Facts v
 |---|---|
 | DP-2.1 | The pilot head coach says `SUPPORT` only observes: exclude it in the service. |
 | DP-2.2 | Coaches need to cancel events with evidence without voiding one by one: batch voiding (S5). |
-| DP-2.3 | T4.2 shows an existing constraint already prevents R-2: no V9, service only. |
+| DP-2.3 | A legitimate flow needs evaluations with an event but no session (none exists today). |
 | DP-2.4 | Product defines D-05 before S6. |
 | DP-2.5 | T4.7 shows noticeable contention: per-event lock or a `version` column (V9). |
 | DP-2.6 | Smaller per-task PRs are needed. |
