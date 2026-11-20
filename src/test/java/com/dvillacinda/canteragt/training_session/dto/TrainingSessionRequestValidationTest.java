@@ -2,6 +2,7 @@ package com.dvillacinda.canteragt.training_session.dto;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.time.OffsetDateTime;
@@ -12,6 +13,8 @@ import org.junit.jupiter.api.Test;
 import com.dvillacinda.canteragt.training_session.enums.TrainingSessionStatus;
 import jakarta.validation.Validator;
 import jakarta.validation.Validation;
+import tools.jackson.databind.DeserializationFeature;
+import tools.jackson.databind.exc.UnrecognizedPropertyException;
 import tools.jackson.databind.json.JsonMapper;
 
 class TrainingSessionRequestValidationTest {
@@ -45,14 +48,22 @@ class TrainingSessionRequestValidationTest {
                   "name": "Practice",
                   "session_date": "2026-11-17T10:00:00-06:00",
                   "location_id": "%s",
-                  "notes": "Passing",
-                  "created_by_coach_id": "%s"
+                  "notes": "Passing"
                 }
-                """.formatted(locationId, creatorId), TrainingSessionCreateRequest.class);
+                """.formatted(locationId), TrainingSessionCreateRequest.class);
 
         assertEquals(locationId, request.locationId());
         assertTrue(request.sessionDate().isEqual(OffsetDateTime.parse("2026-11-17T10:00:00-06:00")));
         assertFalse(jsonMapper.writeValueAsString(request).contains("created_by_coach_id"));
+
+        // Same setting as spring.jackson.deserialization.fail-on-unknown-properties in application.yaml
+        JsonMapper strict = JsonMapper.builder().enable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES).build();
+        assertThrows(UnrecognizedPropertyException.class, () -> strict.readValue("""
+                { "name": "Practice", "session_date": "2026-11-17T10:00:00-06:00", "created_by_coach_id": "%s" }
+                """.formatted(creatorId), TrainingSessionCreateRequest.class));
+        assertThrows(UnrecognizedPropertyException.class, () -> strict.readValue("""
+                { "name": "Practice", "sessionDate": "2026-11-17T10:00:00-06:00" }
+                """, TrainingSessionCreateRequest.class));
     }
 
     @Test

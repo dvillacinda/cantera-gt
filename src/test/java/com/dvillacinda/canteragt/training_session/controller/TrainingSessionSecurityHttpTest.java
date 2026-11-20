@@ -254,7 +254,34 @@ class TrainingSessionSecurityHttpTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.status").value(400))
                 .andExpect(jsonPath("$.error").value("Validation failed"))
-                .andExpect(jsonPath("$.fieldErrors.name").exists());
+                .andExpect(jsonPath("$.field_errors.name").exists());
+        verifyNoInteractions(trainingSessionService);
+    }
+
+    @Test
+    void camelCasePatchFieldIsRejectedInsteadOfSilentlyIgnored() throws Exception {
+        mockMvc.perform(patch("/api/v1/training-sessions/{id}", UUID.randomUUID())
+                        .header("X-Academy-Id", ACADEMY_ID)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"locationId\":\"" + UUID.randomUUID() + "\"}")
+                        .with(user("coach").roles("COACH")))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("Malformed request"))
+                .andExpect(jsonPath("$.field_errors.locationId").value("Unknown field; use 'location_id' (snake_case)"));
+        verifyNoInteractions(trainingSessionService);
+    }
+
+    @Test
+    void serverControlledFieldInBodyIsRejected() throws Exception {
+        mockMvc.perform(post("/api/v1/academy-categories/{id}/training-sessions", CATEGORY_ID)
+                        .header("X-Academy-Id", ACADEMY_ID)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"name":"Practice","session_date":"2027-11-17T10:00:00-06:00",
+                                 "created_by_coach_id":"%s"}""".formatted(UUID.randomUUID()))
+                        .with(user("coach").roles("COACH")))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.field_errors.created_by_coach_id").value("Unknown field"));
         verifyNoInteractions(trainingSessionService);
     }
 }

@@ -4,7 +4,7 @@ Esta API cubre las sesiones de entrenamiento: su ciclo de vida, la lista de part
 
 Todas las rutas requieren un token bearer de Keycloak y el encabezado `X-Academy-Id`. Todos los nombres de propiedades JSON usan `snake_case`. Las fechas y horas usan ISO-8601 con desplazamiento, y el servidor las almacena y devuelve en la hora local de la academia, `America/Guatemala` (UTC−6). Consulte [ADR-0003](adr/ADR-0003-time-zone-and-clock.md).
 
-Las respuestas correctas usan el sobre común `{ "success", "status", "message", "data" }`. Las respuestas de error usan `{ "status", "error", "message", "fieldErrors"? }`. Las convenciones de rutas se describen en [ADR-0001](adr/ADR-0001-rest-conventions.md).
+Las respuestas correctas usan el sobre común `{ "success", "status", "message", "data" }`. Las respuestas de error usan `{ "status", "error", "message", "field_errors"? }`. Las convenciones de rutas se describen en [ADR-0001](adr/ADR-0001-rest-conventions.md).
 
 ## Quién puede hacer qué
 
@@ -64,7 +64,8 @@ PLANNED ──start──► IN_PROGRESS ──complete──► COMPLETED
 **Listado**
 
 - **Paginación:** `page` empieza en 0 y `size` tiene un valor predeterminado de 20 y un máximo de 50.
-- **Orden:** el valor predeterminado es `session_date,desc`. Los campos de orden permitidos son `session_date`, `status`, `name` y `created_at`.
+- **Orden:** el valor predeterminado es `session_date,desc`. Los campos de orden permitidos son `session_date`, `status`, `name` y `created_at` (solo en `snake_case`; `sessionDate` se rechaza con 400).
+- **Cuerpo de la página:** `data` es `{ "content": [...], "page": { "size", "number", "total_elements", "total_pages" } }`.
 - **Filtros:** `status`, además de `from` y `to` (ISO-8601 con desplazamiento).
 - **Ámbito:** los resultados siempre se limitan a la categoría de academia de la ruta, directamente en la consulta.
 
@@ -83,12 +84,12 @@ PLANNED ──start──► IN_PROGRESS ──complete──► COMPLETED
 
 Cada jugador debe tener una asignación `ACTIVE` vigente en la categoría de la sesión, verificada con la fecha actual de Guatemala. Se rechazan las asignaciones vencidas, futuras, transferidas y de otras categorías.
 
-**Rechazo de lotes.** El lote es atómico: si algún ID no es válido, no se agrega ningún jugador. La respuesta enumera cada ID rechazado con su motivo en `fieldErrors`:
+**Rechazo de lotes.** El lote es atómico: si algún ID no es válido, no se agrega ningún jugador. La respuesta enumera cada ID rechazado con su motivo en `field_errors`:
 
 ```json
 { "status": 400, "error": "Bad Request",
   "message": "Batch rejected: no player was added. See rejected player ids",
-  "fieldErrors": { "0193…": "NO_CURRENT_ASSIGNMENT_IN_CATEGORY" } }
+  "field_errors": { "0193…": "NO_CURRENT_ASSIGNMENT_IN_CATEGORY" } }
 ```
 
 | Motivo | Estado |

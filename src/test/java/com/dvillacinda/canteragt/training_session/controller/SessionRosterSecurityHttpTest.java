@@ -189,8 +189,8 @@ class SessionRosterSecurityHttpTest {
                         .with(user("coach").roles("COACH")))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.status").value(400))
-                .andExpect(jsonPath("$.fieldErrors['" + PLAYER_ID + "']").value("NO_CURRENT_ASSIGNMENT_IN_CATEGORY"))
-                .andExpect(jsonPath("$.fieldErrors['" + other + "']").value("NO_CURRENT_ASSIGNMENT_IN_CATEGORY"));
+                .andExpect(jsonPath("$.field_errors['" + PLAYER_ID + "']").value("NO_CURRENT_ASSIGNMENT_IN_CATEGORY"))
+                .andExpect(jsonPath("$.field_errors['" + other + "']").value("NO_CURRENT_ASSIGNMENT_IN_CATEGORY"));
     }
 
     @Test
@@ -205,7 +205,7 @@ class SessionRosterSecurityHttpTest {
                         .content("{\"player_ids\":[\"" + PLAYER_ID + "\"]}")
                         .with(user("coach").roles("COACH")))
                 .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.fieldErrors['" + PLAYER_ID + "']").value("ALREADY_IN_SESSION"));
+                .andExpect(jsonPath("$.field_errors['" + PLAYER_ID + "']").value("ALREADY_IN_SESSION"));
     }
 
     @Test

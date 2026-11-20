@@ -4,7 +4,7 @@ import java.time.OffsetDateTime;
 import java.util.UUID;
 
 import org.springdoc.core.annotations.ParameterObject;
-import org.springframework.data.domain.Page;
+
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort.Direction;
 import org.springframework.data.web.PageableDefault;
@@ -25,6 +25,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.dvillacinda.canteragt.shared.dto.ApiResponse;
+import com.dvillacinda.canteragt.shared.dto.PageResponse;
 import com.dvillacinda.canteragt.training_session.dto.TrainingSessionCreateRequest;
 import com.dvillacinda.canteragt.training_session.dto.TrainingSessionFilter;
 import com.dvillacinda.canteragt.training_session.dto.TrainingSessionResponse;
@@ -58,7 +59,7 @@ public class TrainingSessionController {
 
     @GetMapping("/academy-categories/{academyCategoryId}/training-sessions")
     @Operation(summary = "List training sessions", description = "Lists sessions in the selected category with filters.")
-    public ResponseEntity<ApiResponse<Page<TrainingSessionResponse>>> list(
+    public ResponseEntity<ApiResponse<PageResponse<TrainingSessionResponse>>> list(
             @PathVariable UUID academyCategoryId,
             @RequestHeader("X-Academy-Id") UUID academyId,
             @RequestParam(name = "status", required = false) TrainingSessionStatus status,
@@ -66,11 +67,11 @@ public class TrainingSessionController {
                     @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime from,
             @RequestParam(name = "to", required = false)
                     @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime to,
-            @ParameterObject @PageableDefault(size = 20, sort = "sessionDate", direction = Direction.DESC)
+            @ParameterObject @PageableDefault(size = 20, sort = "session_date", direction = Direction.DESC)
                     Pageable pageable,
             Authentication authentication) {
-        Page<TrainingSessionResponse> response = trainingSessionService.list(
-                academyCategoryId, academyId, new TrainingSessionFilter(status, from, to), pageable, authentication);
+        PageResponse<TrainingSessionResponse> response = PageResponse.from(trainingSessionService.list(
+                academyCategoryId, academyId, new TrainingSessionFilter(status, from, to), pageable, authentication));
         return ResponseEntity.ok(new ApiResponse<>(true, HttpStatus.OK, "Training sessions found successfully",
                 response));
     }

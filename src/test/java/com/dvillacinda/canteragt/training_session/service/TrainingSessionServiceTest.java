@@ -214,12 +214,14 @@ class TrainingSessionServiceTest {
 
     @Test
     void listQueriesOnlyRequestedCategoryAndPassesFiltersToDatabase() {
-        PageRequest pageable = PageRequest.of(0, 20, Sort.by(Sort.Direction.DESC, "sessionDate"));
+        // The client sorts by the JSON name; the repository receives the entity property
+        PageRequest pageable = PageRequest.of(0, 20, Sort.by(Sort.Direction.DESC, "session_date"));
+        PageRequest repositoryPageable = PageRequest.of(0, 20, Sort.by(Sort.Direction.DESC, "sessionDate"));
         when(trainingSessionRepository.searchByCategory(
                 eq(CATEGORY_ID), eq(TrainingSessionStatus.PLANNED),
                 eq(LocalDateTime.of(2026, 11, 17, 8, 0)),
-                eq(LocalDateTime.of(2026, 11, 17, 18, 0)), eq(pageable)))
-                .thenReturn(Page.empty(pageable));
+                eq(LocalDateTime.of(2026, 11, 17, 18, 0)), eq(repositoryPageable)))
+                .thenReturn(Page.empty(repositoryPageable));
 
         Page<?> result = service.list(
                 CATEGORY_ID,
@@ -236,7 +238,7 @@ class TrainingSessionServiceTest {
         verify(trainingSessionRepository).searchByCategory(
                 CATEGORY_ID, TrainingSessionStatus.PLANNED,
                 LocalDateTime.of(2026, 11, 17, 8, 0),
-                LocalDateTime.of(2026, 11, 17, 18, 0), pageable);
+                LocalDateTime.of(2026, 11, 17, 18, 0), repositoryPageable);
     }
 
     @Test

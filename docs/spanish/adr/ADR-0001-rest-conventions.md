@@ -30,9 +30,11 @@ Los controladores antiguos usan rutas con verbos (`/get-player-by-id/{id}`, `/cr
    | 409 | conflicto de estado o concurrencia, o duplicado |
 
 4. **Cuerpos.**
-   - JSON usa `snake_case` (`@JsonNaming(SnakeCaseStrategy)` en los DTO de tipo record). La API nunca expone entidades JPA.
+   - JSON usa `snake_case` (`@JsonNaming(SnakeCaseStrategy)` en los DTO de tipo record, incluidos los anidados). La API nunca expone entidades JPA. Las claves de validación en `field_errors` usan los mismos nombres (`player_ids`, `results[0].raw_value`).
+   - La API usa Jackson 3 (`tools.jackson`), pero swagger-core sigue usando Jackson 2 para inspeccionar los modelos. `Jackson3NamingIntrospector` (registrado en `OpenApiConfig`) traduce `@JsonNaming`, de modo que Swagger muestra los nombres reales. `ApiNamingConventionTest` verifica el cuerpo de cada controlador y su esquema OpenAPI.
+   - Los cuerpos son estrictos (`spring.jackson.deserialization.fail-on-unknown-properties: true`): un campo desconocido, como `locationId` en camelCase o el campo controlado por el servidor `created_by_coach_id`, devuelve 400 `Malformed request` con `field_errors: { "locationId": "Unknown field; use 'location_id' (snake_case)" }` en lugar de ignorarse.
    - Las respuestas correctas usan el sobre existente `ApiResponse`; los errores usan `ErrorResponse`.
-   - Cuando se rechaza un lote, los ID rechazados y sus motivos se incluyen en `fieldErrors`.
+   - Cuando se rechaza un lote, los ID rechazados y sus motivos se incluyen en `field_errors`.
 5. **Paginación.** Utilice Spring `Pageable`: `page` empieza en 0, `size` tiene un valor predeterminado de 20 y un máximo de 50, y solo se permiten campos de orden incluidos en una lista autorizada. Cada lista tiene su propio orden predeterminado (las sesiones usan `session_date,desc`). Las listas de participantes y de personal no se paginan, porque una categoría tiene aproximadamente entre 20 y 30 jugadores.
 6. **Campos controlados por el servidor.**
    - El servidor nunca acepta del cuerpo campos de identidad o auditoría (`created_by_coach_id`, `version`, marcas de tiempo).

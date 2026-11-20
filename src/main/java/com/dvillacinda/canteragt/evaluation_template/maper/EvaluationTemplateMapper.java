@@ -8,6 +8,7 @@ import lombok.RequiredArgsConstructor;
 
 import com.dvillacinda.canteragt.evaluation_template.dto.EvaluationCriterionResponse;
 import com.dvillacinda.canteragt.evaluation_template.dto.EvaluationTemplateResponse;
+import com.dvillacinda.canteragt.evaluation_template.dto.TemplateDimensionResponse;
 import com.dvillacinda.canteragt.evaluation_template.entity.EvaluationCriterionEntity;
 import com.dvillacinda.canteragt.evaluation_template.entity.EvaluationTemplateEntity;
 import com.dvillacinda.canteragt.evaluation_template.repository.EvaluationCriterionRepository;
@@ -42,7 +43,10 @@ public class EvaluationTemplateMapper {
                         .collect(Collectors.toCollection(LinkedHashSet::new)),
                 entity.getCreatedAt(),
                 entity.getUpdatedAt(),
-                entity.getDimensions(),
+                entity.getDimensions().stream()
+                        .map(dimension -> new TemplateDimensionResponse(
+                                dimension.getDimensionCode(), dimension.isPrimary()))
+                        .toList(),
                 criterionRepository.findAllForTemplate(entity.getTemplateId()).stream()
                         .map(this::toCriterionResponse).toList());
     }

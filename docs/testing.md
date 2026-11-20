@@ -73,7 +73,9 @@ are absent. The focused MVC and unit command does not need external services.
 is a parameterized table that runs every status (`PLANNED`, `IN_PROGRESS`, `COMPLETED`, `CANCELLED`) against
 every action (start, complete, cancel, edit). It asserts that each invalid transition returns 409 and never
 writes to the database. `TrainingSessionRequestValidationTest` checks Bean Validation and `snake_case` naming.
-It also checks that the client cannot send `created_by_coach_id`.
+It also checks that a strict mapper rejects `created_by_coach_id` and camelCase fields. `ApiNamingConventionTest`
+checks that every controller body (requests, responses and nested types) is snake_case and that its OpenAPI schema
+uses the same names; it needs no services.
 
 `TrainingSessionSecurityHttpTest` is an MVC slice test with a mocked service, so it covers only the HTTP layer.
 For all five management routes it checks:
@@ -114,7 +116,7 @@ It also checks that the session row is locked before any roster check.
 `SessionRosterSecurityHttpTest` covers the HTTP boundary:
 - 401 without a token, 403 for PLAYER and for a coach who is not HEAD_COACH, and 404 for another academy;
 - batches over 60 rejected with 400 before the service runs;
-- the error body for a rejected batch, which lists ids in `fieldErrors` (id → reason);
+- the error body for a rejected batch, which lists ids in `field_errors` (id → reason);
 - that the roster body contains no email or Keycloak id.
 
 `SessionRosterPostgresIntegrationTest` runs against `postgres-test` with real dates. It checks that expired,

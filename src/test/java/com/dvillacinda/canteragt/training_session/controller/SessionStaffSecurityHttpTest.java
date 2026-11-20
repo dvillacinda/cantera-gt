@@ -195,7 +195,7 @@ class SessionStaffSecurityHttpTest {
                         .contentType(MediaType.APPLICATION_JSON).content("{\"participation_type\":\"LEAD\"}")
                         .with(user("coach").roles("COACH")))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.fieldErrors.coachId").exists());
+                .andExpect(jsonPath("$.field_errors.coach_id").exists());
         mockMvc.perform(post("/api/v1/training-sessions/{id}/staff", SESSION_ID)
                         .header("X-Academy-Id", ACADEMY_ID)
                         .contentType(MediaType.APPLICATION_JSON)

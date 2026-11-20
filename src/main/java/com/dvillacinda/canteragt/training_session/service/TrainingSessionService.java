@@ -54,11 +54,9 @@ public class TrainingSessionService {
     private static final int MAX_PAGE_SIZE = 50;
     private static final Map<String, String> SORT_FIELDS = Map.of(
             "session_date", "sessionDate",
-            "sessionDate", "sessionDate",
             "status", "status",
             "name", "name",
-            "created_at", "createdAt",
-            "createdAt", "createdAt");
+            "created_at", "createdAt");
 
     private final TrainingSessionRepository trainingSessionRepository;
     private final AcademyCategoryRepository academyCategoryRepository;

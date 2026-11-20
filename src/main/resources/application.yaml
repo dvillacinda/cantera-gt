@@ -2,6 +2,11 @@ spring:
   profiles:
     active:
     - dev
+  jackson:
+    deserialization:
+      # Strict JSON contract: a field the API does not know (e.g. camelCase "firstName" instead of "first_name",
+      # or a server-controlled field) is rejected with 400 instead of being silently ignored.
+      fail-on-unknown-properties: true
 
 server:
   port: 8080

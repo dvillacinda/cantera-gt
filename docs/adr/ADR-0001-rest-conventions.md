@@ -35,9 +35,16 @@ OpenAPI.
    | 409 | state or concurrency conflict, or duplicate |
 
 4. **Bodies.**
-   - JSON is `snake_case` (`@JsonNaming(SnakeCaseStrategy)` on record DTOs). The API never exposes JPA entities.
+   - JSON is `snake_case` (`@JsonNaming(SnakeCaseStrategy)` on record DTOs, including nested records). The API never
+     exposes JPA entities. Validation keys in `field_errors` use the same names (`player_ids`, `results[0].raw_value`).
+   - The API uses Jackson 3 (`tools.jackson`) while swagger-core still introspects with Jackson 2.
+     `Jackson3NamingIntrospector` (registered in `OpenApiConfig`) bridges `@JsonNaming`, so Swagger shows the real
+     names. `ApiNamingConventionTest` checks every controller body and its OpenAPI schema.
+   - Bodies are strict (`spring.jackson.deserialization.fail-on-unknown-properties: true`): an unknown field, such as
+     camelCase `locationId` or the server-controlled `created_by_coach_id`, returns 400 `Malformed request` with
+     `field_errors: { "locationId": "Unknown field; use 'location_id' (snake_case)" }` instead of being ignored.
    - Success responses use the existing `ApiResponse` envelope; errors use `ErrorResponse`.
-   - When a batch is rejected, the rejected ids and their reasons go in `fieldErrors`.
+   - When a batch is rejected, the rejected ids and their reasons go in `field_errors`.
 5. **Pagination.** Use Spring `Pageable`: `page` is 0-based, `size` defaults to 20 with a maximum of 50, and only
    whitelisted sort fields are allowed. Each list has its own default sort (sessions use `session_date,desc`).
    Roster and staff lists are not paginated, since a category has about 20–30 players.

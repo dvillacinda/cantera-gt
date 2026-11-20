@@ -7,7 +7,7 @@ Every route requires a Keycloak bearer token and the `X-Academy-Id` header. All 
 `America/Guatemala` (UTC−6). See [ADR-0003](adr/ADR-0003-time-zone-and-clock.md).
 
 Successful responses use the common envelope `{ "success", "status", "message", "data" }`. Error responses use
-`{ "status", "error", "message", "fieldErrors"? }`. Route conventions are in
+`{ "status", "error", "message", "field_errors"? }`. Route conventions are in
 [ADR-0001](adr/ADR-0001-rest-conventions.md).
 
 ## Who can do what
@@ -74,7 +74,8 @@ PLANNED ──start──► IN_PROGRESS ──complete──► COMPLETED
 
 - **Pagination:** `page` is 0-based and `size` defaults to 20, with a maximum of 50.
 - **Sort:** defaults to `session_date,desc`. Allowed sort fields are `session_date`, `status`, `name` and
-  `created_at`.
+  `created_at` (snake_case only; `sessionDate` is rejected with 400).
+- **Page body:** `data` is `{ "content": [...], "page": { "size", "number", "total_elements", "total_pages" } }`.
 - **Filters:** `status`, plus `from` and `to` (ISO-8601 with offset).
 - **Scope:** results are always restricted to the path's academy category, inside the query itself.
 
@@ -96,12 +97,12 @@ Every player must have a current `ACTIVE` assignment in the session's category, 
 Guatemala. Expired, future, transferred and other-category assignments are rejected.
 
 **Batch rejection.** The batch is atomic: if any id is invalid, no player is added. The response lists each rejected
-id with its reason in `fieldErrors`:
+id with its reason in `field_errors`:
 
 ```json
 { "status": 400, "error": "Bad Request",
   "message": "Batch rejected: no player was added. See rejected player ids",
-  "fieldErrors": { "0193…": "NO_CURRENT_ASSIGNMENT_IN_CATEGORY" } }
+  "field_errors": { "0193…": "NO_CURRENT_ASSIGNMENT_IN_CATEGORY" } }
 ```
 
 | Reason | Status |

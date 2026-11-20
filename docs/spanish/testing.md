@@ -43,7 +43,7 @@ mvn "-Dtest=CanteragtApplicationTests,EvaluationHttpPostgresIntegrationTest,Keyc
 
 ## Sesiones de entrenamiento (Sprint 3)
 
-`TrainingSessionServiceTest` cubre las reglas de negocio de sesiones con un `Clock` fijo. `lifecycleTransitionTable` es una tabla parametrizada que prueba cada estado (`PLANNED`, `IN_PROGRESS`, `COMPLETED`, `CANCELLED`) con cada acción (iniciar, completar, cancelar, editar). Comprueba que cada transición no válida devuelve 409 y nunca escribe en la base de datos. `TrainingSessionRequestValidationTest` comprueba la validación de Bean Validation y el uso de nombres `snake_case`. También comprueba que el cliente no pueda enviar `created_by_coach_id`.
+`TrainingSessionServiceTest` cubre las reglas de negocio de sesiones con un `Clock` fijo. `lifecycleTransitionTable` es una tabla parametrizada que prueba cada estado (`PLANNED`, `IN_PROGRESS`, `COMPLETED`, `CANCELLED`) con cada acción (iniciar, completar, cancelar, editar). Comprueba que cada transición no válida devuelve 409 y nunca escribe en la base de datos. `TrainingSessionRequestValidationTest` comprueba la validación de Bean Validation y el uso de nombres `snake_case`. También comprueba que un mapper estricto rechace `created_by_coach_id` y los campos en camelCase. `ApiNamingConventionTest` verifica que el cuerpo de cada controlador (requests, responses y tipos anidados) esté en `snake_case` y que su esquema OpenAPI use los mismos nombres; no necesita servicios.
 
 `TrainingSessionSecurityHttpTest` es una prueba de porción MVC con un servicio simulado, por lo que solo cubre la capa HTTP. Para las cinco rutas de administración comprueba:
 - 401 sin token y 403 para `PLAYER` antes de que se ejecute el servicio;
@@ -78,7 +78,7 @@ También comprueba que se bloquee la fila de la sesión antes de cualquier verif
 `SessionRosterSecurityHttpTest` cubre el límite HTTP:
 - 401 sin token, 403 para `PLAYER` y para un entrenador que no es `HEAD_COACH`, y 404 para otra academia;
 - los lotes de más de 60 se rechazan con 400 antes de que se ejecute el servicio;
-- el cuerpo de error de un lote rechazado, que enumera los ID en `fieldErrors` (ID → motivo);
+- el cuerpo de error de un lote rechazado, que enumera los ID en `field_errors` (ID → motivo);
 - que el cuerpo de la lista no contenga correo electrónico ni ID de Keycloak.
 
 `SessionRosterPostgresIntegrationTest` se ejecuta contra `postgres-test` con fechas reales. Comprueba que se rechacen las asignaciones vencidas, futuras, transferidas y de otras categorías. También demuestra tres aspectos en la base de datos:

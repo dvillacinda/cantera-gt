@@ -6,7 +6,6 @@ import java.util.Set;
 import java.util.UUID;
 
 import com.dvillacinda.canteragt.evaluation_template.enums.EvaluationTemplateStatus;
-import com.dvillacinda.canteragt.template_dimension.TemplateDimension;
 
 import tools.jackson.databind.PropertyNamingStrategies;
 import tools.jackson.databind.annotation.JsonNaming;
@@ -32,7 +31,7 @@ public record EvaluationTemplateResponse(
     Set<UUID> childTemplateIds, 
     LocalDateTime createdAt,
     LocalDateTime updatedAt,
-    List<TemplateDimension> templateDimensions,
+    List<TemplateDimensionResponse> templateDimensions,
     List<EvaluationCriterionResponse> criteria
 ) {
     

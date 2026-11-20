@@ -17,10 +17,16 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import lombok.extern.slf4j.Slf4j;
+import tools.jackson.databind.PropertyNamingStrategies;
+import tools.jackson.databind.PropertyNamingStrategy;
+import tools.jackson.databind.exc.UnrecognizedPropertyException;
+import tools.jackson.core.JacksonException;
 
 @RestControllerAdvice
 @Slf4j
 public class GlobalExceptionHandler {
+
+    private static final PropertyNamingStrategy JSON_NAMING = PropertyNamingStrategies.SNAKE_CASE;
 
     @ExceptionHandler(ResourceNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleResourceNotFoundException(ResourceNotFoundException ex) {
@@ -71,7 +77,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleValidationException(MethodArgumentNotValidException ex) {
         Map<String, String> fieldErrors = new LinkedHashMap<>();
         for (FieldError fieldError : ex.getBindingResult().getFieldErrors()) {
-            fieldErrors.putIfAbsent(fieldError.getField(), fieldError.getDefaultMessage());
+            fieldErrors.putIfAbsent(toJsonPath(fieldError.getField()), fieldError.getDefaultMessage());
         }
         ErrorResponse error = new ErrorResponse(
                 HttpStatus.BAD_REQUEST.value(),
@@ -83,6 +89,16 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(HttpMessageNotReadableException.class)
     public ResponseEntity<ErrorResponse> handleMessageNotReadable(HttpMessageNotReadableException ex) {
+        if (ex.getMostSpecificCause() instanceof UnrecognizedPropertyException unknown) {
+            String field = unknownFieldPath(unknown);
+            String expected = JSON_NAMING.nameForField(null, null, unknown.getPropertyName());
+            String reason = expected.equals(unknown.getPropertyName())
+                    ? "Unknown field"
+                    : "Unknown field; use '" + expected + "' (snake_case)";
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(new ErrorResponse(
+                    HttpStatus.BAD_REQUEST.value(), "Malformed request",
+                    "Request body contains fields that are not part of this endpoint", Map.of(field, reason)));
+        }
         return build(HttpStatus.BAD_REQUEST, "Malformed request", "Request body is missing or malformed");
     }
 
@@ -104,6 +120,44 @@ public class GlobalExceptionHandler {
         }
         log.error("Unexpected error", ex);
         return build(HttpStatus.INTERNAL_SERVER_ERROR, "Internal server error", "An unexpected error occurred");
+    }
+
+    /**
+     * Bean Validation reports Java property paths ({@code results[0].rawValue}); the client sent snake_case
+     * ({@code results[0].raw_value}), so each segment is translated with the naming strategy used by the DTOs.
+     */
+    static String toJsonPath(String javaPath) {
+        StringBuilder json = new StringBuilder(javaPath.length() + 8);
+        String[] segments = javaPath.split("\\.", -1);
+        for (int i = 0; i < segments.length; i++) {
+            if (i > 0) {
+                json.append('.');
+            }
+            String segment = segments[i];
+            int bracket = segment.indexOf('[');
+            String name = bracket < 0 ? segment : segment.substring(0, bracket);
+            json.append(JSON_NAMING.nameForField(null, null, name));
+            if (bracket >= 0) {
+                json.append(segment, bracket, segment.length());
+            }
+        }
+        return json.toString();
+    }
+
+    /** JSON path of the unknown field as the client wrote it, e.g. {@code results[0].rawValue}. */
+    static String unknownFieldPath(UnrecognizedPropertyException ex) {
+        StringBuilder path = new StringBuilder();
+        for (JacksonException.Reference reference : ex.getPath()) {
+            if (reference.getPropertyName() != null) {
+                if (!path.isEmpty()) {
+                    path.append('.');
+                }
+                path.append(reference.getPropertyName());
+            } else if (reference.getIndex() >= 0) {
+                path.append('[').append(reference.getIndex()).append(']');
+            }
+        }
+        return path.isEmpty() ? ex.getPropertyName() : path.toString();
     }
 
     private String findConstraintName(Throwable ex) {

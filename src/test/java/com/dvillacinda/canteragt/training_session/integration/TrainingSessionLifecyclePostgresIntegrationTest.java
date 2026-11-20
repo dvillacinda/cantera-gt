@@ -127,11 +127,11 @@ class TrainingSessionLifecyclePostgresIntegrationTest {
         JsonNode rejectedExpired = body(perform(post("/api/v1/training-sessions/{id}/players", sessionId), head(),
                 json(playerIds(fx.expired())), 400));
         assertEquals("NO_CURRENT_ASSIGNMENT_IN_CATEGORY",
-                rejectedExpired.path("fieldErrors").path(fx.expired().toString()).asString());
+                rejectedExpired.path("field_errors").path(fx.expired().toString()).asString());
         JsonNode rejectedForeign = body(perform(post("/api/v1/training-sessions/{id}/players", sessionId), head(),
                 json(playerIds(fx.foreign())), 400));
         assertEquals("NO_CURRENT_ASSIGNMENT_IN_CATEGORY",
-                rejectedForeign.path("fieldErrors").path(fx.foreign().toString()).asString());
+                rejectedForeign.path("field_errors").path(fx.foreign().toString()).asString());
 
         // staff: assistant joins
         perform(post("/api/v1/training-sessions/{id}/staff", sessionId), head(), json("""
@@ -208,7 +208,7 @@ class TrainingSessionLifecyclePostgresIntegrationTest {
         String listA = "/api/v1/academy-categories/{id}/training-sessions";
 
         JsonNode page = data(perform(get(listA, fx.category()).param("size", "2"), head(), null, 200));
-        assertEquals(3, page.path("totalElements").asInt(page.path("page").path("totalElements").asInt()));
+        assertEquals(3, page.path("page").path("total_elements").asInt());
         assertEquals(2, page.path("content").size());
         assertEquals("A3", page.path("content").get(0).path("name").asString(), "default order: session_date desc");
 
