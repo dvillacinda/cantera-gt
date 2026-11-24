@@ -37,10 +37,12 @@ import com.dvillacinda.canteragt.training_session.dto.TrainingSessionResponse;
 import com.dvillacinda.canteragt.training_session.dto.TrainingSessionUpdateRequest;
 import com.dvillacinda.canteragt.training_session.entity.TrainingSessionEntity;
 import com.dvillacinda.canteragt.training_session.enums.AttendanceStatus;
+import com.dvillacinda.canteragt.training_session.enums.SessionEvaluationEventStatus;
 import com.dvillacinda.canteragt.training_session.enums.TrainingSessionStatus;
 import com.dvillacinda.canteragt.training_session.mapper.TrainingSessionMapper;
 import com.dvillacinda.canteragt.training_session.entity.SessionStaffEntity;
 import com.dvillacinda.canteragt.training_session.enums.SessionParticipationType;
+import com.dvillacinda.canteragt.training_session.repository.SessionEvaluationEventRepository;
 import com.dvillacinda.canteragt.training_session.repository.SessionPlayerRepository;
 import com.dvillacinda.canteragt.training_session.repository.SessionStaffRepository;
 import com.dvillacinda.canteragt.training_session.repository.TrainingSessionRepository;
@@ -63,6 +65,7 @@ public class TrainingSessionService {
     private final AcademyLocationRepository academyLocationRepository;
     private final SessionPlayerRepository sessionPlayerRepository;
     private final SessionStaffRepository sessionStaffRepository;
+    private final SessionEvaluationEventRepository eventRepository;
     private final CurrentUserService currentUserService;
     private final TrainingSessionAccessPolicy accessPolicy;
     private final TrainingSessionMapper mapper;
@@ -188,6 +191,7 @@ public class TrainingSessionService {
         if (!pendingPlayerIds.isEmpty()) {
             throw new ConflictException("Cannot complete session with players still PENDING: " + pendingPlayerIds);
         }
+        requireNoEventInProgress(sessionId, "Cannot complete a session with evaluation events IN_PROGRESS");
         session.setStatus(TrainingSessionStatus.COMPLETED);
         session.setEndedAt(LocalDateTime.now(clock));
         return mapper.toResponse(saveVersioned(session));
@@ -199,11 +203,24 @@ public class TrainingSessionService {
                 && session.getStatus() != TrainingSessionStatus.IN_PROGRESS) {
             throw new ConflictException("Only planned or in-progress sessions can be cancelled");
         }
+        requireNoEventInProgress(sessionId, "Cannot cancel a session with evaluation events IN_PROGRESS");
         if (session.getStatus() == TrainingSessionStatus.IN_PROGRESS) {
             session.setEndedAt(LocalDateTime.now(clock));
         }
         session.setStatus(TrainingSessionStatus.CANCELLED);
+        // ADR-0004 DP-2.2 (confirmed in T4.3-D5): PLANNED events have no evidence and are cancelled with the session.
+        // They are flushed together with the session's version check, so a concurrent event change (which bumps the
+        // session version under TrainingSessionLock) makes this cancellation fail with 409 as a whole.
+        eventRepository.findAllByTrainingSession_SessionIdAndStatus(sessionId, SessionEvaluationEventStatus.PLANNED)
+                .forEach(event -> event.setStatus(SessionEvaluationEventStatus.CANCELLED));
         return mapper.toResponse(saveVersioned(session));
+    }
+
+    private void requireNoEventInProgress(UUID sessionId, String message) {
+        if (eventRepository.existsByTrainingSession_SessionIdAndStatus(
+                sessionId, SessionEvaluationEventStatus.IN_PROGRESS)) {
+            throw new ConflictException(message);
+        }
     }
 
     private TrainingSessionEntity findManageableSession(

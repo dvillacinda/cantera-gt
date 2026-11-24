@@ -58,6 +58,9 @@ import com.dvillacinda.canteragt.training_session.repository.SessionPlayerReposi
 import com.dvillacinda.canteragt.training_session.repository.SessionStaffRepository;
 import com.dvillacinda.canteragt.training_session.entity.SessionStaffEntity;
 import com.dvillacinda.canteragt.training_session.enums.SessionParticipationType;
+import com.dvillacinda.canteragt.training_session.entity.SessionEvaluationEventEntity;
+import com.dvillacinda.canteragt.training_session.enums.SessionEvaluationEventStatus;
+import com.dvillacinda.canteragt.training_session.repository.SessionEvaluationEventRepository;
 import com.dvillacinda.canteragt.training_session.repository.TrainingSessionRepository;
 
 @ExtendWith(MockitoExtension.class)
@@ -80,6 +83,8 @@ class TrainingSessionServiceTest {
     @Mock
     private SessionStaffRepository sessionStaffRepository;
     @Mock
+    private SessionEvaluationEventRepository eventRepository;
+    @Mock
     private CurrentUserService currentUserService;
     @Mock
     private TrainingSessionAccessPolicy accessPolicy;
@@ -97,6 +102,7 @@ class TrainingSessionServiceTest {
                 academyLocationRepository,
                 sessionPlayerRepository,
                 sessionStaffRepository,
+                eventRepository,
                 currentUserService,
                 accessPolicy,
                 mapper,
@@ -349,6 +355,42 @@ class TrainingSessionServiceTest {
         assertEquals(TrainingSessionStatus.CANCELLED, response.status());
         assertEquals(LocalDateTime.of(2026, 11, 17, 10, 0), session.getEndedAt());
         assertThrows(ConflictException.class, () -> service.cancel(SESSION_ID, ACADEMY_ID, authentication));
+    }
+
+    /** E9 (ADR-0004, DP-2.2): a session with an event IN_PROGRESS can be neither completed nor cancelled. */
+    @Test
+    void sessionWithAnEventInProgressCannotBeCompletedOrCancelled() {
+        TrainingSessionEntity session = session(TrainingSessionStatus.IN_PROGRESS);
+        session.setStartedAt(LocalDateTime.of(2026, 11, 17, 9, 0));
+        when(trainingSessionRepository.findBySessionIdAndAcademyCategory_Academy_AcademyId(SESSION_ID, ACADEMY_ID))
+                .thenReturn(Optional.of(session));
+        when(sessionPlayerRepository.findPlayerIdsBySessionAndAttendanceStatus(
+                SESSION_ID, CATEGORY_ID, AttendanceStatus.PENDING)).thenReturn(List.of());
+        when(eventRepository.existsByTrainingSession_SessionIdAndStatus(
+                SESSION_ID, SessionEvaluationEventStatus.IN_PROGRESS)).thenReturn(true);
+
+        assertThrows(ConflictException.class, () -> service.complete(SESSION_ID, ACADEMY_ID, authentication));
+        assertThrows(ConflictException.class, () -> service.cancel(SESSION_ID, ACADEMY_ID, authentication));
+        assertEquals(TrainingSessionStatus.IN_PROGRESS, session.getStatus());
+        verify(trainingSessionRepository, never()).saveAndFlush(any());
+    }
+
+    /** T4.3-D5: cancelling a session cancels its PLANNED events (they have no evidence). */
+    @Test
+    void cancellingASessionCancelsItsPlannedEvents() {
+        TrainingSessionEntity session = session(TrainingSessionStatus.PLANNED);
+        when(trainingSessionRepository.findBySessionIdAndAcademyCategory_Academy_AcademyId(SESSION_ID, ACADEMY_ID))
+                .thenReturn(Optional.of(session));
+        when(trainingSessionRepository.saveAndFlush(session)).thenReturn(session);
+        SessionEvaluationEventEntity planned = SessionEvaluationEventEntity.builder()
+                .status(SessionEvaluationEventStatus.PLANNED).build();
+        when(eventRepository.findAllByTrainingSession_SessionIdAndStatus(
+                SESSION_ID, SessionEvaluationEventStatus.PLANNED)).thenReturn(List.of(planned));
+
+        service.cancel(SESSION_ID, ACADEMY_ID, authentication);
+
+        assertEquals(SessionEvaluationEventStatus.CANCELLED, planned.getStatus());
+        assertEquals(TrainingSessionStatus.CANCELLED, session.getStatus());
     }
 
     /**
