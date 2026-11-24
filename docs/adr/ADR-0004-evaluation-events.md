@@ -2,8 +2,8 @@
 
 - **Status:** Draft. Decisions approved on 2026-11-20 (DP-2, "APRUEBO DEFAULTS"). The ADR is published as Accepted
   in T4.7, once the implementation and its tests exist.
-- **Implementation:** T4.2 (V9), T4.3 (events and metrics) and T4.4 (evaluation link) done; pending T4.5 voiding,
-  T4.6 rotation
+- **Implementation:** T4.2 (V9), T4.3 (events and metrics), T4.4 (evaluation link) and T4.5 (voiding and reads)
+  done; pending T4.6 rotation
 
 ## Context
 
@@ -92,6 +92,18 @@ inside a session where coaches record evidence for the convened players. Facts v
      coach.
    - A voided evaluation frees the unique index, so the player can be evaluated again in that event.
    - Collective visibility across the category is decided in S6.
+   - T4.5 decisions (approved 2026-11-23, "APRUEBO DEFAULTS"):
+     - The read rule applies to **every** evaluation, inside or outside an event (D1). It replaces R-5. One assertion in
+       `EvaluationHttpPostgresIntegrationTest` changed accordingly: a current `HEAD_COACH` of the category now reads a
+       colleague's evaluation.
+     - Admins read without `X-Academy-Id`; the scope comes from the evaluation's academy (D2). Only `SYSTEM_ADMIN`
+       and the `ACADEMY_ADMIN` of that academy count as admins, never a coach.
+     - Voiding is allowed in any session or event state (D3). It takes the session lock when the evaluation belongs
+       to a session. Only `COMPLETED` evaluations can be voided; a second void returns 409.
+     - The void route returns 200 with the evaluation, including `voided_at`, `voided_by_coach_id` and `void_reason`
+       (D4).
+     - The void route only admits `COACH`, so the assumption above holds at the boundary: administrators get 403.
+       A caller who can read but not void gets 403; anyone else gets 404.
 5. **Concurrency (DP-2.5, option A).**
    - Every mutation of events, and of evaluations tied to an event, takes `TrainingSessionLock` after authorization
      and inside the transaction.

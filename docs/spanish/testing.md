@@ -184,6 +184,31 @@ Las dos pruebas de concurrencia (dos creaciones a la vez y dos llamadas `start` 
 
 La prueba del duplicado concurrente se validó por mutación. Al quitar `TrainingSessionLock` de `SessionEventEvaluationContextService`, la solicitud perdedora llega al índice único `evaluations_event_player_uq` en lugar del 409 del servicio, y la prueba falla. `EvaluationHttpPostgresIntegrationTest` (E7) no se modificó y sigue pasando.
 
+### Anulación y lectura de evaluaciones (T4.5)
+
+- `EvaluationAccessPolicyTest` comprueba quién puede hacer qué:
+  - el creador y el `HEAD_COACH` vigente de la categoría pueden anular;
+  - un administrador del alcance solo puede leer, y uno fuera del alcance no obtiene nada;
+  - un entrenador nunca se trata como administrador;
+  - un usuario desconocido o sin JWT no obtiene nada.
+- `EvaluationVoidServiceTest` comprueba la anulación:
+  - el motivo se recorta, el autor sale del JWT y la fecha del reloj;
+  - una segunda anulación devuelve 409 y conserva la primera auditoría;
+  - 404 fuera del alcance, 403 con acceso de solo lectura, 404 con la ruta de otro jugador;
+  - una cuenta inactiva no puede anular, y un motivo vacío o demasiado largo devuelve 400;
+  - una evaluación de una sesión se bloquea y se relee antes de verificar su estado, y una evaluación suelta no necesita bloqueo.
+- `PlayerEvaluationSecurityHttpTest` agrega:
+  - los administradores pueden llamar a la ruta de lectura y `PLAYER` no;
+  - solo `COACH` puede anular, y se requiere token;
+  - la validación del cuerpo, incluido que no se puede enviar `voided_by_coach_id`;
+  - los campos de auditoría en snake_case, y 409 en una segunda anulación.
+- `EvaluationEventPostgresIntegrationTest` agrega, por HTTP y con las políticas reales:
+  - el DT anula lo que registró el asistente, la evidencia se conserva, una segunda anulación devuelve 409 y el jugador se vuelve a evaluar (E8);
+  - la matriz de lectura: el creador, el DT y el administrador de la academia reciben 200; otro asistente, el preparador físico, un entrenador de otra academia, un administrador de otra academia y la ruta de otro jugador reciben 404; un administrador que intenta anular recibe 403;
+  - un evento solo se puede cancelar cuando todas sus evaluaciones están anuladas, y la anulación sigue funcionando después de cerrar el evento y la sesión.
+
+`EvaluationHttpPostgresIntegrationTest` cambió una aserción, como se aprobó en T4.5-D1: un `HEAD_COACH` vigente de la categoría ahora lee la evaluación de un colega (200 en lugar de 404). Los demás 404 de esa prueba no cambiaron.
+
 ### Fábrica de datos de prueba
 
 `support/TestDataFactory` crea datos de PostgreSQL para las pruebas: academia, categoría de academia con su temporada, ubicación, usuarios, entrenadores y jugadores, sus asignaciones y sesiones. Cada columna única lleva un sufijo aleatorio por fábrica, por lo que las pruebas no necesitan limpieza. `subject(handle)` devuelve el ID de Keycloak del usuario para utilizarlo como sujeto del JWT. Las pruebas de integración de sesiones lo usan. `EvaluationHttpPostgresIntegrationTest` conserva sus propios datos de prueba deliberadamente, porque constituye la evidencia de regresión para las evaluaciones.
@@ -191,5 +216,5 @@ La prueba del duplicado concurrente se validó por mutación. Al quitar `Trainin
 Ejecute la suite completa contra `postgres-test`. No necesita `@Disabled` ni omite pruebas. `KeycloakJwtIntegrationTest` solo se omite cuando faltan las tres variables de Keycloak.
 
 ```powershell
-mvn -o test   # 256 pruebas al final de Sprint 3; 281 tras T4.2; 371 tras T4.3; 411 tras T4.4
+mvn -o test   # 256 pruebas al final de Sprint 3; 281 tras T4.2; 371 tras T4.3; 411 tras T4.4; 433 tras T4.5
 ```

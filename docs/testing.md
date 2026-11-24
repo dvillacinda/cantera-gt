@@ -256,6 +256,37 @@ The concurrent duplicate test was validated by mutation. With `TrainingSessionLo
 instead of the service's 409, and the test fails. `EvaluationHttpPostgresIntegrationTest` (E7) is unchanged and still
 passes.
 
+### Voiding and reading evaluations (T4.5)
+
+- `EvaluationAccessPolicyTest` checks who can do what:
+  - the creator and the current `HEAD_COACH` of the category can void;
+  - an admin in scope can only read, and an admin out of scope gets nothing;
+  - a coach is never treated as an admin;
+  - an unknown user or a missing JWT gets nothing.
+- `EvaluationVoidServiceTest` checks voiding:
+  - the reason is trimmed, the author comes from the JWT and the time from the clock;
+  - a second void is 409 and keeps the first audit;
+  - 404 out of scope, 403 with read-only access, 404 for another player's path;
+  - an inactive account cannot void, and a blank or overlong reason is 400;
+  - an evaluation of a session is locked and re-read before its status is checked, and a standalone one needs no
+    lock.
+- `PlayerEvaluationSecurityHttpTest` adds:
+  - admins can call the read route and `PLAYER` cannot;
+  - only `COACH` can void, and a token is required;
+  - body validation, including that `voided_by_coach_id` cannot be sent;
+  - the audit fields in snake_case, and 409 on a second void.
+- `EvaluationEventPostgresIntegrationTest` adds, over HTTP with the real policies:
+  - the head coach voids what the assistant recorded, the evidence is kept, a second void is 409, and the player is
+    evaluated again (E8);
+  - the read matrix: creator, head coach and academy admin get 200; another assistant, the fitness coach, a coach of
+    another academy, an admin of another academy and another player's path get 404; an admin who tries to void gets
+    403;
+  - an event can be cancelled only after all its evaluations are voided, and voiding still works after the event
+    and the session are closed.
+
+`EvaluationHttpPostgresIntegrationTest` changed one assertion, as approved in T4.5-D1: a current `HEAD_COACH` of the
+category now reads a colleague's evaluation (200 instead of 404). Every other 404 in that test is unchanged.
+
 ### Test data factory
 
 `support/TestDataFactory` builds PostgreSQL fixtures: academy, academy category with its season, location, users,
@@ -268,5 +299,5 @@ Run the whole suite against `postgres-test`. It needs no `@Disabled` and skips n
 skips itself only when the three Keycloak variables are missing.
 
 ```powershell
-mvn -o test   # 256 tests at the end of Sprint 3; 281 after T4.2; 371 after T4.3; 411 after T4.4
+mvn -o test   # 256 tests at the end of Sprint 3; 281 after T4.2; 371 after T4.3; 411 after T4.4; 433 after T4.5
 ```
