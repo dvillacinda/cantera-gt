@@ -39,6 +39,12 @@ public interface SessionPlayerRepository extends JpaRepository<SessionPlayerEnti
             """)
     List<UUID> findPlayerIdsBySession(@Param("sessionId") UUID sessionId);
 
+    long countByTrainingSession_SessionIdAndAttendanceStatusIn(
+            UUID sessionId, Collection<AttendanceStatus> attendanceStatuses);
+
+    /** Roster entry without joins: only the attendance is needed to decide whether a player can be evaluated. */
+    Optional<SessionPlayerEntity> findByTrainingSession_SessionIdAndPlayer_PlayerId(UUID sessionId, UUID playerId);
+
     /** Roster with the player's name and position joined in a single query (no N+1). */
     @Query("""
             select sp from SessionPlayerEntity sp

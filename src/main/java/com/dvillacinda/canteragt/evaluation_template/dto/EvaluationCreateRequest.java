@@ -17,7 +17,14 @@ public record EvaluationCreateRequest(
         @NotEmpty @Valid List<ResultRequest> results,
         @Size(max = 5000) String strengths,
         @Size(max = 5000) String improvementAreas,
-        @Size(max = 5000) String generalComment) {
+        @Size(max = 5000) String generalComment,
+        UUID sessionEventId) {
+    /** Evaluation outside any event (the original contract, kept for callers that do not send an event). */
+    public EvaluationCreateRequest(UUID templateId, Integer templateVersion, List<ResultRequest> results,
+            String strengths, String improvementAreas, String generalComment) {
+        this(templateId, templateVersion, results, strengths, improvementAreas, generalComment, null);
+    }
+
     @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
     public record ResultRequest(
             @NotNull UUID criterionId,

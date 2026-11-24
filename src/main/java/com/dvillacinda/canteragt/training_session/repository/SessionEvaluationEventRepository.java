@@ -46,10 +46,9 @@ public interface SessionEvaluationEventRepository extends JpaRepository<SessionE
     List<SessionEvaluationEventEntity> findAllByTrainingSession_SessionIdAndStatus(
             UUID sessionId, SessionEvaluationEventStatus status);
 
-    /** evaluations.session_event_id is not mapped on EvaluationEntity yet (T4.4), hence the native query. */
-    @Query(value = """
-            select exists (select 1 from evaluations
-                           where session_event_id = :eventId and status <> 'VOIDED')
-            """, nativeQuery = true)
+    @Query("""
+            select count(e) > 0 from EvaluationEntity e
+            where e.sessionEvent.sessionEventId = :eventId and e.status <> 'VOIDED'
+            """)
     boolean hasNonVoidedEvaluations(@Param("eventId") UUID eventId);
 }

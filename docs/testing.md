@@ -216,6 +216,46 @@ The two concurrency tests (two creations at once and two `start` calls on the sa
 mutation. With `TrainingSessionLock` removed from the service, both fail: the second creation hits the unique
 `block_order` key, and both `start` calls succeed.
 
+### Evaluations in an event (T4.4)
+
+- `SessionEventEvaluationContextServiceTest` checks the context rules:
+  - a missing header returns 400, and an unknown event returns 404 before authorization;
+  - the order is authorize → lock → re-read → state checks;
+  - a data entry denial (E5) is not masked by the state checks;
+  - the session and the event must both be `IN_PROGRESS`;
+  - attendance is checked for every value: only `PRESENT` and `LATE` pass;
+  - the player must be convened, and a second evaluation that is not voided returns 409;
+  - the three warnings, both present and absent.
+- `EvaluationServiceEventTest` checks the event path of `EvaluationService`:
+  - only the event's metrics are required (E2, R-1), and a scored result outside them returns 400;
+  - non-scored components are accepted;
+  - the template and version must be the event's;
+  - session and category come from the event;
+  - warnings are returned;
+  - without an event, the context service is never used.
+- `PlayerEvaluationSecurityHttpTest` covers the HTTP boundary of the POST:
+  - 401 without a token;
+  - 403 for `PLAYER` and for admins without the `COACH` role (R-4);
+  - the header and `session_event_id` reach the service;
+  - the snake_case response with `warnings`;
+  - the standalone POST works without the header (E7).
+- `EvaluationEventPostgresIntegrationTest` runs over HTTP against `postgres-test`, with the real security chain and
+  the real `TrainingSessionAccessPolicy`. It covers:
+  - E1 and E2;
+  - the data entry matrix: head coach, staff `ASSISTANT`, `ASSISTANT` outside the staff (E6), `FITNESS_COACH`
+    outside the staff, staff with the session `PLANNED` (E5), and a coach of another academy;
+  - E3;
+  - the event state, academy and template checks;
+  - the duplicate and re-evaluation after voiding (E8);
+  - the warnings;
+  - the concurrent duplicate (E4);
+  - the R-11 behavior of the standalone POST, kept as debt.
+
+The concurrent duplicate test was validated by mutation. With `TrainingSessionLock` removed from
+`SessionEventEvaluationContextService`, the losing request reaches the unique index `evaluations_event_player_uq`
+instead of the service's 409, and the test fails. `EvaluationHttpPostgresIntegrationTest` (E7) is unchanged and still
+passes.
+
 ### Test data factory
 
 `support/TestDataFactory` builds PostgreSQL fixtures: academy, academy category with its season, location, users,
@@ -228,5 +268,5 @@ Run the whole suite against `postgres-test`. It needs no `@Disabled` and skips n
 skips itself only when the three Keycloak variables are missing.
 
 ```powershell
-mvn -o test   # 256 tests at the end of Sprint 3; 281 after T4.2; 371 after T4.3
+mvn -o test   # 256 tests at the end of Sprint 3; 281 after T4.2; 371 after T4.3; 411 after T4.4
 ```

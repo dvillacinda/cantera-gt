@@ -23,7 +23,7 @@ Crear o eliminar una cuenta de entrenador, cambiar los nombres de su perfil glob
 
 | Método | Ruta | Comportamiento |
 | --- | --- | --- |
-| POST | `/api/v1/players/{playerId}/evaluations` | Registra una evaluación completada. Requiere el rol `COACH`, además de asignaciones vigentes del entrenador y del jugador en la misma categoría de academia. |
+| POST | `/api/v1/players/{playerId}/evaluations` | Registra una evaluación completada. Requiere el rol `COACH`, además de asignaciones vigentes del entrenador y del jugador en la misma categoría de academia. Con `session_event_id` se aplican, en su lugar, las reglas del evento que se describen más abajo. |
 | GET | `/api/v1/players/{playerId}/evaluations/{evaluationId}` | Recupera una evaluación creada por el entrenador autenticado. |
 
 Las rutas de perfiles del personal bajo `/api/v1/players/**` y `/api/v1/coaches/**` que acceden a un recurso por ID requieren `X-Academy-Id`. El backend resuelve las asignaciones activas de academia y categoría en cada solicitud. El entrenador debe compartir actualmente la categoría de academia del jugador; un administrador de academia debe administrar la academia seleccionada y el objetivo debe tener allí una asignación vigente. Los perfiles fuera del ámbito devuelven 404.
@@ -58,6 +58,47 @@ Ejemplo de solicitud:
 ```
 
 El evaluador se obtiene del JWT autenticado y el cliente no puede proporcionarlo. El ID y la versión de la plantilla deben identificar la versión oficial activa actual; los criterios deben pertenecer a esa plantilla. Los criterios activos predeterminados son obligatorios. Se validan las pruebas sin procesar específicas de cada métrica, los límites de escala, los comentarios requeridos, la lateralidad y los datos de las observaciones. La evaluación, los resultados y las observaciones se guardan en una sola transacción. La referencia a la plantilla conserva la versión utilizada; en el MVP, las filas de plantillas y criterios oficiales son inmutables.
+
+Sin `session_event_id`, las reglas anteriores se aplican sin cambios. `X-Academy-Id` se ignora y no es obligatorio. Toda respuesta incluye ahora `session_id`, `session_event_id` y `warnings`; fuera de un evento valen `null`, `null` y una lista vacía.
+
+## Evaluaciones en un evento de evaluación (Sprint 4)
+
+Si se envía `session_event_id` en el mismo POST, la evaluación se registra dentro de un evento de evaluación de una sesión de entrenamiento (consulte [sessions-api.md](sessions-api.md) y [ADR-0004](../adr/ADR-0004-evaluation-events.md), borrador en inglés). Las reglas se comprueban en este orden:
+
+| # | Regla | Estado si no se cumple |
+|---|---|---|
+| 1 | Se envía `X-Academy-Id` | 400 |
+| 2 | El evento existe en esa academia | 404 |
+| 3 | Quien llama puede registrar datos: el `HEAD_COACH` vigente de la categoría, o el personal de la sesión (`LEAD`, `ASSISTANT`, `SUPPORT`) mientras la sesión está `IN_PROGRESS` | 403, o 404 sin asignación vigente en la categoría |
+| 4 | La sesión y el evento están `IN_PROGRESS` | 409 |
+| 5 | El jugador existe | 404 |
+| 6 | El jugador está convocado en la sesión con asistencia `PRESENT` o `LATE` | 409 |
+| 7 | El jugador no tiene en este evento una evaluación que no esté `VOIDED` | 409 |
+| 8 | `template_id` y `template_version` corresponden a la plantilla del evento | 400 |
+| 9 | Hay un resultado para cada una de las **métricas activas del evento** y ningún resultado con puntuación fuera de ellas. Se aceptan los componentes sin puntuación. | 400 |
+
+El acceso se comprueba antes que el estado de la sesión, por lo que el personal de la sesión recibe 403, no 409, cuando la sesión no está en curso. La ruta sigue exigiendo el rol `COACH` y el evaluador debe tener un perfil de entrenador. Por tanto, un administrador necesita ambos para registrar datos.
+
+**Lo que fija el servidor.**
+- `session_id` y la categoría se toman del evento y de su sesión.
+- La plantilla es la del evento, aunque se haya retirado después de crear el evento.
+- La fecha de la evaluación usa el reloj del servidor en la hora de la academia.
+- Las solicitudes simultáneas para el mismo jugador y evento se serializan con el bloqueo de la sesión, por lo que se registra exactamente una y la otra recibe 409.
+
+**Advertencias**, que nunca bloquean la solicitud:
+
+| Código | Cuándo |
+|---|---|
+| `FREQUENCY_TOO_SOON` | La última evaluación no anulada del jugador con la misma plantilla tiene menos días que `frequency_min_days` |
+| `PREVIOUS_STILL_VALID` | Esa evaluación sigue vigente (`valid_until` es hoy o posterior) |
+| `GROUP_TOO_SMALL` | Hay menos jugadores `PRESENT` o `LATE` en la sesión que el `group_size_min` de la plantilla (supuesto pendiente de confirmar con el DT piloto) |
+
+```json
+{ "template_id": "…", "template_version": 1, "session_event_id": "…",
+  "results": [ { "criterion_id": "…", "level": 2 }, { "criterion_id": "…", "level": 3 } ] }
+```
+
+**Deuda conocida (R-11).** Fuera de un evento, un entrenador que consulta a un jugador existente sin asignación vigente recibe 403, mientras que un jugador inexistente devuelve 404, de modo que la diferencia revela que el jugador existe. La ruta con evento devuelve 404 de forma uniforme. Corregir la ruta sin evento cambia un comportamiento público y queda planificado para más adelante (T4.8 o Sprint 5).
 
 ## Alcance actual y verificación
 

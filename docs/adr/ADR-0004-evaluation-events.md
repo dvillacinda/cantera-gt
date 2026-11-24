@@ -2,7 +2,7 @@
 
 - **Status:** Draft. Decisions approved on 2026-11-20 (DP-2, "APRUEBO DEFAULTS"). The ADR is published as Accepted
   in T4.7, once the implementation and its tests exist.
-- **Implementation:** T4.2 (V9) and T4.3 (events and metrics) done; pending T4.4 evaluation link, T4.5 voiding,
+- **Implementation:** T4.2 (V9), T4.3 (events and metrics) and T4.4 (evaluation link) done; pending T4.5 voiding,
   T4.6 rotation
 
 ## Context
@@ -63,6 +63,16 @@ inside a session where coaches record evidence for the convened players. Facts v
    - The required metrics are **the event's metrics**, not the template's `activeByDefault` set (fixes R-1).
    - The server derives `session_id` from the event; the client does not send it.
    - Frequency, validity and group-size issues are returned as warnings in the response and do not block.
+   - T4.4 decisions (approved 2026-11-23, "APRUEBO DEFAULTS"):
+     - `X-Academy-Id` is required only when `session_event_id` is sent. An event outside that academy returns 404.
+     - A player who is not convened, or whose attendance is not `PRESENT` or `LATE`, returns 409.
+     - Warnings: `FREQUENCY_TOO_SOON` (`frequency_min_days`), `PREVIOUS_STILL_VALID` (`valid_until`) and
+       `GROUP_TOO_SMALL` (players `PRESENT`/`LATE` below `group_size_min`; assumption to confirm with the pilot head
+       coach).
+     - R-11 stays in the standalone POST as recorded debt: 403 instead of 404 for an existing player without a
+       current assignment. The event path returns 404 uniformly.
+     - Findings: R-4 confirmed. The route only admits `COACH`, so an administrator needs the `COACH` role and a coach
+       profile to enter data. R-1 fixed for the event path.
    - Database coherence (T4.2, option B, approved 2026-11-20). The audit
      (`SessionEvaluationEventSchemaPostgresIntegrationTest`) confirmed R-2, so
      `V9__session_evaluation_events_integrity.sql` adds:

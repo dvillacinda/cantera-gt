@@ -149,6 +149,41 @@ Dos pruebas llamadas `gap…` documentan reglas que se mantienen en el servicio 
 
 Las dos pruebas de concurrencia (dos creaciones a la vez y dos llamadas `start` al mismo evento) se validaron por mutación. Al quitar `TrainingSessionLock` del servicio, ambas fallan: la segunda creación choca con la clave única de `block_order` y las dos llamadas `start` tienen éxito.
 
+### Evaluaciones en un evento (T4.4)
+
+- `SessionEventEvaluationContextServiceTest` comprueba las reglas de contexto:
+  - si falta el encabezado se devuelve 400, y un evento desconocido devuelve 404 antes de autorizar;
+  - el orden es autorizar → bloquear → releer → verificar estados;
+  - una denegación de registro de datos (E5) no queda oculta por las verificaciones de estado;
+  - la sesión y el evento deben estar `IN_PROGRESS`;
+  - la asistencia se comprueba para cada valor: solo pasan `PRESENT` y `LATE`;
+  - el jugador debe estar convocado, y una segunda evaluación no anulada devuelve 409;
+  - las tres advertencias, tanto cuando aparecen como cuando no.
+- `EvaluationServiceEventTest` comprueba la ruta con evento de `EvaluationService`:
+  - solo se exigen las métricas del evento (E2, R-1), y un resultado con puntuación fuera de ellas devuelve 400;
+  - se aceptan los componentes sin puntuación;
+  - la plantilla y su versión deben ser las del evento;
+  - la sesión y la categoría se toman del evento;
+  - se devuelven las advertencias;
+  - sin evento, nunca se usa el servicio de contexto.
+- `PlayerEvaluationSecurityHttpTest` cubre la frontera HTTP del POST:
+  - 401 sin token;
+  - 403 para `PLAYER` y para administradores sin el rol `COACH` (R-4);
+  - el encabezado y `session_event_id` llegan al servicio;
+  - la respuesta en snake_case con `warnings`;
+  - el POST sin evento funciona sin el encabezado (E7).
+- `EvaluationEventPostgresIntegrationTest` se ejecuta por HTTP contra `postgres-test`, con la cadena de seguridad real y la `TrainingSessionAccessPolicy` real. Cubre:
+  - E1 y E2;
+  - la matriz de registro de datos: DT, `ASSISTANT` del personal, `ASSISTANT` fuera del personal (E6), `FITNESS_COACH` fuera del personal, personal con la sesión `PLANNED` (E5) y entrenador de otra academia;
+  - E3;
+  - las verificaciones de estado del evento, de academia y de plantilla;
+  - el duplicado y la nueva evaluación tras anular (E8);
+  - las advertencias;
+  - el duplicado concurrente (E4);
+  - el comportamiento R-11 del POST sin evento, que se mantiene como deuda.
+
+La prueba del duplicado concurrente se validó por mutación. Al quitar `TrainingSessionLock` de `SessionEventEvaluationContextService`, la solicitud perdedora llega al índice único `evaluations_event_player_uq` en lugar del 409 del servicio, y la prueba falla. `EvaluationHttpPostgresIntegrationTest` (E7) no se modificó y sigue pasando.
+
 ### Fábrica de datos de prueba
 
 `support/TestDataFactory` crea datos de PostgreSQL para las pruebas: academia, categoría de academia con su temporada, ubicación, usuarios, entrenadores y jugadores, sus asignaciones y sesiones. Cada columna única lleva un sufijo aleatorio por fábrica, por lo que las pruebas no necesitan limpieza. `subject(handle)` devuelve el ID de Keycloak del usuario para utilizarlo como sujeto del JWT. Las pruebas de integración de sesiones lo usan. `EvaluationHttpPostgresIntegrationTest` conserva sus propios datos de prueba deliberadamente, porque constituye la evidencia de regresión para las evaluaciones.
@@ -156,5 +191,5 @@ Las dos pruebas de concurrencia (dos creaciones a la vez y dos llamadas `start` 
 Ejecute la suite completa contra `postgres-test`. No necesita `@Disabled` ni omite pruebas. `KeycloakJwtIntegrationTest` solo se omite cuando faltan las tres variables de Keycloak.
 
 ```powershell
-mvn -o test   # 256 pruebas al final de Sprint 3; 281 tras T4.2; 371 tras T4.3
+mvn -o test   # 256 pruebas al final de Sprint 3; 281 tras T4.2; 371 tras T4.3; 411 tras T4.4
 ```

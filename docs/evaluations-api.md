@@ -23,7 +23,7 @@ Creating or deleting a coach account, changing global profile names, and changin
 
 | Method | Path | Behavior |
 | --- | --- | --- |
-| POST | `/api/v1/players/{playerId}/evaluations` | Records a completed evaluation. COACH role required, plus current coach and player assignments in the same academy category. |
+| POST | `/api/v1/players/{playerId}/evaluations` | Records a completed evaluation. COACH role required, plus current coach and player assignments in the same academy category. With `session_event_id`, the event rules below apply instead. |
 | GET | `/api/v1/players/{playerId}/evaluations/{evaluationId}` | Retrieves an evaluation created by the authenticated coach. |
 
 Staff profile routes under `/api/v1/players/**` and `/api/v1/coaches/**` that address a resource by ID require
@@ -71,6 +71,56 @@ Example request:
 ```
 
 The evaluator is resolved from the authenticated JWT and cannot be supplied by the client. The template ID and version must identify the current active official version; criteria must belong to that template. Default active criteria are required. Metric-specific raw evidence, scale bounds, required comments, laterality, and observation payloads are validated. Evaluation, results, and observations are saved in one transaction. The template reference preserves the version used; official template and criterion rows are immutable in the MVP.
+
+Without `session_event_id`, the rules above apply unchanged. `X-Academy-Id` is ignored and is not required. Every
+response now includes `session_id`, `session_event_id` and `warnings`; outside an event they are `null`, `null` and an
+empty list.
+
+## Evaluations in an evaluation event (Sprint 4)
+
+Sending `session_event_id` in the same POST records the evaluation inside an evaluation event of a training session
+(see [sessions-api.md](sessions-api.md) and [ADR-0004](adr/ADR-0004-evaluation-events.md)). The rules are checked in
+this order:
+
+| # | Rule | Status if broken |
+|---|---|---|
+| 1 | `X-Academy-Id` is sent | 400 |
+| 2 | The event exists in that academy | 404 |
+| 3 | The caller may enter data: the category's current `HEAD_COACH`, or session staff (`LEAD`, `ASSISTANT`, `SUPPORT`) while the session is `IN_PROGRESS` | 403, or 404 without a current assignment in the category |
+| 4 | The session and the event are `IN_PROGRESS` | 409 |
+| 5 | The player exists | 404 |
+| 6 | The player is convened in the session with attendance `PRESENT` or `LATE` | 409 |
+| 7 | The player has no evaluation in this event that is not `VOIDED` | 409 |
+| 8 | `template_id` and `template_version` are the event's template | 400 |
+| 9 | There is a result for each of the **event's active metrics**, and no scored result outside them. Non-scored components are accepted. | 400 |
+
+Access is checked before the session state, so session staff get 403, not 409, when the session is not in progress.
+The route still requires the `COACH` role, and the evaluator must have a coach profile. An administrator therefore
+needs both to enter data.
+
+**What the server sets.**
+- `session_id` and the category come from the event and its session.
+- The template is the event's, even if it was retired after the event was created.
+- The evaluation date uses the server clock in academy time.
+- Concurrent requests for the same player and event are serialized by the session lock, so exactly one is recorded and
+  the other gets 409.
+
+**Warnings** never block the request:
+
+| Code | When |
+|---|---|
+| `FREQUENCY_TOO_SOON` | The player's last non-voided evaluation with the same template is younger than the template's `frequency_min_days` |
+| `PREVIOUS_STILL_VALID` | That evaluation is still valid (`valid_until` is today or later) |
+| `GROUP_TOO_SMALL` | Fewer players are `PRESENT` or `LATE` in the session than the template's `group_size_min` (assumption pending confirmation with the pilot head coach) |
+
+```json
+{ "template_id": "…", "template_version": 1, "session_event_id": "…",
+  "results": [ { "criterion_id": "…", "level": 2 }, { "criterion_id": "…", "level": 3 } ] }
+```
+
+**Known debt (R-11).** Outside an event, a coach who asks for an existing player without a current assignment gets 403,
+while an unknown player gets 404, so the difference reveals that the player exists. The event path returns 404
+uniformly. Fixing the standalone path changes a public behavior and is planned for later (T4.8 or Sprint 5).
 
 ## Current scope and verification
 
