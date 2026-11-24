@@ -149,7 +149,6 @@ Dos pruebas llamadas `gap…` documentan reglas que se mantienen en el servicio 
 
 Las dos pruebas de concurrencia (dos creaciones a la vez y dos llamadas `start` al mismo evento) se validaron por mutación. Al quitar `TrainingSessionLock` del servicio, ambas fallan: la segunda creación choca con la clave única de `block_order` y las dos llamadas `start` tienen éxito.
 
-<<<<<<< HEAD
 ### Evaluaciones en un evento (T4.4)
 
 - `SessionEventEvaluationContextServiceTest` comprueba las reglas de contexto:
@@ -185,8 +184,6 @@ Las dos pruebas de concurrencia (dos creaciones a la vez y dos llamadas `start` 
 
 La prueba del duplicado concurrente se validó por mutación. Al quitar `TrainingSessionLock` de `SessionEventEvaluationContextService`, la solicitud perdedora llega al índice único `evaluations_event_player_uq` en lugar del 409 del servicio, y la prueba falla. `EvaluationHttpPostgresIntegrationTest` (E7) no se modificó y sigue pasando.
 
-=======
->>>>>>> 09747250a5bdbda4753b33943a7a99afa3192534
 ### Fábrica de datos de prueba
 
 `support/TestDataFactory` crea datos de PostgreSQL para las pruebas: academia, categoría de academia con su temporada, ubicación, usuarios, entrenadores y jugadores, sus asignaciones y sesiones. Cada columna única lleva un sufijo aleatorio por fábrica, por lo que las pruebas no necesitan limpieza. `subject(handle)` devuelve el ID de Keycloak del usuario para utilizarlo como sujeto del JWT. Las pruebas de integración de sesiones lo usan. `EvaluationHttpPostgresIntegrationTest` conserva sus propios datos de prueba deliberadamente, porque constituye la evidencia de regresión para las evaluaciones.
@@ -194,9 +191,5 @@ La prueba del duplicado concurrente se validó por mutación. Al quitar `Trainin
 Ejecute la suite completa contra `postgres-test`. No necesita `@Disabled` ni omite pruebas. `KeycloakJwtIntegrationTest` solo se omite cuando faltan las tres variables de Keycloak.
 
 ```powershell
-<<<<<<< HEAD
 mvn -o test   # 256 pruebas al final de Sprint 3; 281 tras T4.2; 371 tras T4.3; 411 tras T4.4
-=======
-mvn -o test   # 256 pruebas al final de Sprint 3; 281 tras T4.2; 371 tras T4.3
->>>>>>> 09747250a5bdbda4753b33943a7a99afa3192534
 ```

@@ -79,6 +79,7 @@ class EvaluationServiceEventTest {
     @Mock UserRepository userRepository;
     @Mock AcademyAccessService academyAccessService;
     @Mock SessionEventEvaluationContextService eventContextService;
+    @Mock EvaluationAccessPolicy accessPolicy;
 
     private EvaluationService service;
     private Authentication auth;
@@ -95,7 +96,7 @@ class EvaluationServiceEventTest {
     void setUp() {
         service = new EvaluationService(evaluationRepository, templateRepository, criterionRepository,
                 playerRepository, playerAssignmentRepository, coachRepository, coachAssignmentRepository,
-                userRepository, academyAccessService, eventContextService, CLOCK);
+                userRepository, academyAccessService, eventContextService, accessPolicy, CLOCK);
         UserEntity user = UserEntity.builder().userId(UUID.randomUUID()).keycloakId("coach-a")
                 .status(UserStatus.ACTIVE).build();
         CoachEntity coach = CoachEntity.builder().coachId(UUID.randomUUID()).build();

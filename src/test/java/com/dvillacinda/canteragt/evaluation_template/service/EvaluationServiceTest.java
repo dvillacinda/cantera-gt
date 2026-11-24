@@ -62,6 +62,7 @@ class EvaluationServiceTest {
     @Mock UserRepository userRepository;
     @Mock AcademyAccessService academyAccessService;
     @Mock SessionEventEvaluationContextService eventContextService;
+    @Mock EvaluationAccessPolicy accessPolicy;
     private EvaluationService service;
     private UserEntity user;
     private PlayerEntity player;
@@ -73,7 +74,7 @@ class EvaluationServiceTest {
     void setUp() {
         service = new EvaluationService(evaluationRepository, templateRepository, criterionRepository,
                 playerRepository, playerAssignmentRepository, coachRepository, coachAssignmentRepository,
-                userRepository, academyAccessService, eventContextService,
+                userRepository, academyAccessService, eventContextService, accessPolicy,
                 Clock.fixed(Instant.parse("2026-10-12T12:00:00Z"), ZoneOffset.UTC));
         user = UserEntity.builder().userId(UUID.randomUUID()).keycloakId("coach-a").status(UserStatus.ACTIVE).build();
         player = PlayerEntity.builder().playerId(PLAYER_ID).build();

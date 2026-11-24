@@ -8,6 +8,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.math.BigDecimal;
@@ -290,11 +291,12 @@ class EvaluationHttpPostgresIntegrationTest {
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
         UUID sameAcademyEvaluationId = UUID.fromString(objectMapper.readTree(sameAcademyEvaluationJson)
                 .path("data").path("evaluation_id").asString());
-        String hiddenSameAcademyEvaluation = mockMvc.perform(get(
-                        "/api/v1/players/{playerId}/evaluations/{evaluationId}", fixture.playerId(),
+        // T4.5-D1 (ADR-0004, DP-2.4): coachJwt is a current HEAD_COACH of the evaluation's category, so it can now
+        // read an evaluation recorded by another coach of that category (it was 404 under R-5, creator only).
+        mockMvc.perform(get("/api/v1/players/{playerId}/evaluations/{evaluationId}", fixture.playerId(),
                         sameAcademyEvaluationId).with(coachJwt))
-                .andExpect(status().isNotFound()).andReturn().getResponse().getContentAsString();
-        assertNoEvaluationData(hiddenSameAcademyEvaluation);
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.evaluation_id").value(sameAcademyEvaluationId.toString()));
 
         String otherAcademyEvaluationJson = mockMvc.perform(post(
                         "/api/v1/players/{playerId}/evaluations", fixture.otherPlayerId())

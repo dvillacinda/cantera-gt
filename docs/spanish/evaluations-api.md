@@ -24,13 +24,14 @@ Crear o eliminar una cuenta de entrenador, cambiar los nombres de su perfil glob
 | Método | Ruta | Comportamiento |
 | --- | --- | --- |
 | POST | `/api/v1/players/{playerId}/evaluations` | Registra una evaluación completada. Requiere el rol `COACH`, además de asignaciones vigentes del entrenador y del jugador en la misma categoría de academia. Con `session_event_id` se aplican, en su lugar, las reglas del evento que se describen más abajo. |
-| GET | `/api/v1/players/{playerId}/evaluations/{evaluationId}` | Recupera una evaluación creada por el entrenador autenticado. |
+| GET | `/api/v1/players/{playerId}/evaluations/{evaluationId}` | Recupera una evaluación. Pueden leerla el entrenador que la registró, el `HEAD_COACH` vigente de su categoría, y `SYSTEM_ADMIN` o el `ACADEMY_ADMIN` de su academia. Cualquier otra persona recibe 404. |
+| POST | `/api/v1/players/{playerId}/evaluations/{evaluationId}/void` | Anula una evaluación (Sprint 4). Consulte [Anular una evaluación](#anular-una-evaluación-sprint-4). |
 
 Las rutas de perfiles del personal bajo `/api/v1/players/**` y `/api/v1/coaches/**` que acceden a un recurso por ID requieren `X-Academy-Id`. El backend resuelve las asignaciones activas de academia y categoría en cada solicitud. El entrenador debe compartir actualmente la categoría de academia del jugador; un administrador de academia debe administrar la academia seleccionada y el objetivo debe tener allí una asignación vigente. Los perfiles fuera del ámbito devuelven 404.
 
 Actualmente no existe una ruta de perfil propio para jugadores. `PLAYER` no puede acceder a las rutas de personal para jugadores. Agregar una ruta de autoservicio y decidir qué campos se pueden consultar o editar requiere una decisión de producto. Los entrenadores no pueden editar su perfil mediante la API de entrenadores. Las mutaciones existentes de entrenadores por parte de administradores de academia pueden cambiar el nombre y apellido globales del entrenador, el estado global de su cuenta o eliminar el registro global del entrenador/usuario después de encontrar una asignación vigente en la academia seleccionada. Por tanto, un entrenador asignado a varias academias se ve afectado globalmente. El código no define si estos cambios globales corresponden a un administrador de academia, solo a un administrador de sistema o si deberían convertirse en datos propios de cada academia; esta decisión está pendiente, así que aquí se documentan los permisos actuales de mutación de la API, sin modificarlos.
 
-Solo el entrenador que creó una evaluación puede consultarla. Los demás entrenadores reciben 404 aunque compartan la academia o categoría; así se evita exponer datos del jugador mediante los ID de evaluación. Si se desea que los evaluadores de toda la academia tengan acceso, se necesita una decisión de política explícita.
+La lectura de evaluaciones sigue [ADR-0004](../adr/ADR-0004-evaluation-events.md) (DP-2.4, Sprint 4). Pueden leer una evaluación el entrenador que la registró, el `HEAD_COACH` vigente de su categoría, y `SYSTEM_ADMIN` o el `ACADEMY_ADMIN` de su academia. Los demás entrenadores reciben 404 aunque compartan la academia o la categoría, para que los ID de evaluación no expongan datos del jugador. La visibilidad colectiva para toda la categoría se decide en el Sprint 6.
 
 El catálogo oficial actual no contiene criterios con `laterality_mode = REQUIRED`. Algunos criterios usan `OPTIONAL` y otros, `NONE`. La API de creación valida el lado proporcionado para cada resultado, pero no exige un par LEFT/RIGHT. No se puede verificar una regla de pares bilaterales en el catálogo oficial hasta que una plantilla defina ese requisito.
 
@@ -97,6 +98,21 @@ El acceso se comprueba antes que el estado de la sesión, por lo que el personal
 { "template_id": "…", "template_version": 1, "session_event_id": "…",
   "results": [ { "criterion_id": "…", "level": 2 }, { "criterion_id": "…", "level": 3 } ] }
 ```
+
+## Anular una evaluación (Sprint 4)
+
+`POST /api/v1/players/{playerId}/evaluations/{evaluationId}/void` con `{"reason": "…"}` marca una evaluación como `VOIDED`. No se borra nada: los resultados se conservan y la evaluación registra cuándo, quién y por qué.
+
+- **Quién:** el entrenador que registró la evaluación o el `HEAD_COACH` vigente de su categoría. La ruta exige el rol `COACH`, así que los administradores reciben 403, porque `voided_by_coach_id` necesita un entrenador. Quien puede leer la evaluación pero no anularla también recibe 403. Cualquier otra persona recibe 404.
+- **Motivo:** obligatorio, de 1 a 500 caracteres después de quitar los espacios de los extremos (si no, 400).
+- **Autor y fecha:** `voided_by_coach_id` se toma del JWT y `voided_at`, del reloj del servidor. El cuerpo no puede fijarlos, y los campos desconocidos se rechazan con 400.
+- **Estado:** solo se puede anular una evaluación `COMPLETED`. Una segunda anulación devuelve 409. Se puede anular en cualquier estado de la sesión o del evento, de modo que los errores detectados después de cerrar la sesión todavía se pueden corregir.
+- **Efecto:**
+  - una evaluación anulada libera su evento para ese jugador, que puede volver a evaluarse en el mismo evento;
+  - un evento se puede cancelar cuando todas sus evaluaciones están anuladas.
+- **Concurrencia:** una evaluación que pertenece a una sesión se anula con el bloqueo de la sesión, así que no puede cruzarse con una nueva evaluación ni con la cancelación del evento.
+
+La respuesta es la evaluación con `status: "VOIDED"`, `voided_at`, `voided_by_coach_id` y `void_reason`. Estos campos también se devuelven al leer la evaluación y valen `null` mientras no esté anulada.
 
 **Deuda conocida (R-11).** Fuera de un evento, un entrenador que consulta a un jugador existente sin asignación vigente recibe 403, mientras que un jugador inexistente devuelve 404, de modo que la diferencia revela que el jugador existe. La ruta con evento devuelve 404 de forma uniforme. Corregir la ruta sin evento cambia un comportamiento público y queda planificado para más adelante (T4.8 o Sprint 5).
 

@@ -216,7 +216,6 @@ The two concurrency tests (two creations at once and two `start` calls on the sa
 mutation. With `TrainingSessionLock` removed from the service, both fail: the second creation hits the unique
 `block_order` key, and both `start` calls succeed.
 
-<<<<<<< HEAD
 ### Evaluations in an event (T4.4)
 
 - `SessionEventEvaluationContextServiceTest` checks the context rules:
@@ -257,8 +256,6 @@ The concurrent duplicate test was validated by mutation. With `TrainingSessionLo
 instead of the service's 409, and the test fails. `EvaluationHttpPostgresIntegrationTest` (E7) is unchanged and still
 passes.
 
-=======
->>>>>>> 09747250a5bdbda4753b33943a7a99afa3192534
 ### Test data factory
 
 `support/TestDataFactory` builds PostgreSQL fixtures: academy, academy category with its season, location, users,
@@ -271,9 +268,5 @@ Run the whole suite against `postgres-test`. It needs no `@Disabled` and skips n
 skips itself only when the three Keycloak variables are missing.
 
 ```powershell
-<<<<<<< HEAD
 mvn -o test   # 256 tests at the end of Sprint 3; 281 after T4.2; 371 after T4.3; 411 after T4.4
-=======
-mvn -o test   # 256 tests at the end of Sprint 3; 281 after T4.2; 371 after T4.3
->>>>>>> 09747250a5bdbda4753b33943a7a99afa3192534
 ```

@@ -13,13 +13,15 @@ import tools.jackson.databind.annotation.JsonNaming;
 /**
  * Evaluation as returned by the API. {@code session_id} and {@code session_event_id} are null for evaluations
  * recorded outside an event. {@code warnings} never block the request; it is empty when there are none and always
- * empty when reading an evaluation.
+ * empty when reading an evaluation. The {@code voided_*} and {@code void_reason} fields are null unless the
+ * evaluation is VOIDED.
  */
 @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
 public record EvaluationResponse(UUID evaluationId, UUID playerId, UUID templateId, Integer templateVersion,
         LocalDateTime evaluationDate, String status, UUID evaluatorCoachId, List<Result> results,
         String strengths, String improvementAreas, String generalComment,
-        UUID sessionId, UUID sessionEventId, List<Warning> warnings) {
+        UUID sessionId, UUID sessionEventId, List<Warning> warnings,
+        LocalDateTime voidedAt, UUID voidedByCoachId, String voidReason) {
     @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
     public record Result(UUID criterionId, BigDecimal rawValue, Integer successes, Integer opportunities,
             Integer errorCount, Integer level, String laterality, String comment, List<Observation> observations) {}

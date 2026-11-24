@@ -56,6 +56,7 @@ public class EvaluationService {
     private final UserRepository userRepository;
     private final AcademyAccessService academyAccessService;
     private final SessionEventEvaluationContextService eventContextService;
+    private final EvaluationAccessPolicy accessPolicy;
     private final Clock clock;
 
     /** Evaluation outside any event: the original behavior, unchanged by Sprint 4 (regression E7). */
@@ -133,14 +134,18 @@ public class EvaluationService {
         return toResponse(evaluationRepository.saveAndFlush(evaluation), warnings);
     }
 
+    /**
+     * Readable by its creator, the current HEAD_COACH of its category and admins in scope (DP-2.4, T4.5-D1/D2).
+     * Anything else, including another player's id in the path, returns 404.
+     */
     @Transactional(readOnly = true)
-    public EvaluationResponse get(UUID evaluationId, Authentication authentication) {
-        UserEntity user = requireCurrentUser(authentication);
-        CoachEntity coach = coachRepository.findByUser_UserId(user.getUserId())
-                .orElseThrow(() -> new UnauthorizedAccessException("Authenticated user has no coach profile"));
-        EvaluationEntity evaluation = evaluationRepository
-                .findByEvaluationIdAndEvaluator_CoachId(evaluationId, coach.getCoachId())
+    public EvaluationResponse get(UUID playerId, UUID evaluationId, Authentication authentication) {
+        EvaluationEntity evaluation = evaluationRepository.findDetailedByEvaluationId(evaluationId)
+                .filter(found -> found.getPlayer().getPlayerId().equals(playerId))
                 .orElseThrow(() -> new NotFoundException("Evaluation not found"));
+        if (!accessPolicy.accessOf(evaluation, authentication).canRead()) {
+            throw new NotFoundException("Evaluation not found");
+        }
         return toResponse(evaluation, List.of());
     }
 
@@ -286,7 +291,7 @@ public class EvaluationService {
         }
     }
 
-    private EvaluationResponse toResponse(EvaluationEntity evaluation, List<EvaluationResponse.Warning> warnings) {
+    static EvaluationResponse toResponse(EvaluationEntity evaluation, List<EvaluationResponse.Warning> warnings) {
         return new EvaluationResponse(evaluation.getEvaluationId(), evaluation.getPlayer().getPlayerId(),
                 evaluation.getTemplate().getTemplateId(), evaluation.getTemplate().getVersion(),
                 evaluation.getEvaluationDate(), evaluation.getStatus(), evaluation.getEvaluator().getCoachId(),
@@ -299,6 +304,9 @@ public class EvaluationService {
                 evaluation.getStrengths(), evaluation.getImprovementAreas(), evaluation.getGeneralComment(),
                 evaluation.getTrainingSession() == null ? null : evaluation.getTrainingSession().getSessionId(),
                 evaluation.getSessionEvent() == null ? null : evaluation.getSessionEvent().getSessionEventId(),
-                warnings);
+                warnings,
+                evaluation.getVoidedAt(),
+                evaluation.getVoidedByCoach() == null ? null : evaluation.getVoidedByCoach().getCoachId(),
+                evaluation.getVoidReason());
     }
 }

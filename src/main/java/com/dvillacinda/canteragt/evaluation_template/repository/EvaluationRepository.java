@@ -7,8 +7,10 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import com.dvillacinda.canteragt.evaluation_template.entity.EvaluationEntity;
 
 public interface EvaluationRepository extends JpaRepository<EvaluationEntity, UUID> {
-    @EntityGraph(attributePaths = { "academyCategory", "player", "template", "evaluator", "results", "results.criterion" })
-    Optional<EvaluationEntity> findByEvaluationIdAndEvaluator_CoachId(UUID evaluationId, UUID evaluatorCoachId);
+    /** Evaluation with everything the access policy and the response need (T4.5). */
+    @EntityGraph(attributePaths = { "academyCategory", "academyCategory.academy", "player", "template", "evaluator",
+            "voidedByCoach", "results", "results.criterion" })
+    Optional<EvaluationEntity> findDetailedByEvaluationId(UUID evaluationId);
 
     /** Duplicate check for (event, player); the partial unique index evaluations_event_player_uq is the safety net. */
     boolean existsBySessionEvent_SessionEventIdAndPlayer_PlayerIdAndStatusNot(

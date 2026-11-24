@@ -60,6 +60,11 @@ public class EvaluationEntity extends BaseEntity {
     @Column(name = "valid_until") private LocalDate validUntil;
     @Column(nullable = false, length = 20) private String status;
     @Column(name = "scoring_status", nullable = false, length = 30) private String scoringStatus = "PENDING";
+    /** Voiding (T4.5). evaluations_void_check: status VOIDED if and only if voided_at and void_reason are set. */
+    @Column(name = "voided_at") private LocalDateTime voidedAt;
+    @ManyToOne(fetch = FetchType.LAZY) @JoinColumn(name = "voided_by_coach_id", referencedColumnName = "coach_id")
+    private CoachEntity voidedByCoach;
+    @Column(name = "void_reason", length = 500) private String voidReason;
     @OneToMany(mappedBy = "evaluation", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<EvaluationResultEntity> results = new ArrayList<>();
 }

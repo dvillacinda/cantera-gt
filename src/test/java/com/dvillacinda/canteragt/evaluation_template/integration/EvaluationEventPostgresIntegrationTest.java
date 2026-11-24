@@ -2,6 +2,7 @@ package com.dvillacinda.canteragt.evaluation_template.integration;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
@@ -43,6 +44,8 @@ import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import com.dvillacinda.canteragt.academy.entity.AcademyEntity;
+import com.dvillacinda.canteragt.academy_admin.entity.AcademyAdminEntity;
+import com.dvillacinda.canteragt.shared.enums.Status;
 import com.dvillacinda.canteragt.academy_category.entity.AcademyCategoryEntity;
 import com.dvillacinda.canteragt.coach.entity.CoachEntity;
 import com.dvillacinda.canteragt.coach_role.enums.CoachRoleCode;
@@ -189,18 +192,88 @@ class EvaluationEventPostgresIntegrationTest {
         assertEquals(0, evaluations(running, fx.present()));
     }
 
-    /** Rule 7 and E8: a second evaluation is 409 until the first one is voided. */
+    /**
+     * Rule 7, E8 and T4.5 over HTTP: the head coach voids what the assistant recorded (author from the JWT), a second
+     * void is 409, and the player can be evaluated again in the same event.
+     */
     @Test
-    void duplicateIs409UntilTheFirstEvaluationIsVoided() throws Exception {
+    void voidOverHttpFreesTheEventForANewEvaluation() throws Exception {
         UUID event = event(fx.session(), "IN_PROGRESS");
-        postInEvent(fx.present(), event, eventMetrics, "head", fx.academyId()).andExpect(status().isCreated());
-        postInEvent(fx.present(), event, eventMetrics, "assistant", fx.academyId()).andExpect(status().isConflict());
+        UUID evaluation = evaluationId(postInEvent(fx.present(), event, eventMetrics, "assistant", fx.academyId())
+                .andExpect(status().isCreated()));
+        postInEvent(fx.present(), event, eventMetrics, "head", fx.academyId()).andExpect(status().isConflict());
 
-        jdbc.update("""
-                UPDATE evaluations SET status = 'VOIDED', voided_at = now(), voided_by_coach_id = ?, void_reason = 'IT'
-                 WHERE session_event_id = ? AND player_id = ?""", fx.head(), event, fx.present());
+        voidEvaluation(fx.present(), evaluation, "head", "  Wrong player  ")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status").value("VOIDED"))
+                .andExpect(jsonPath("$.data.voided_by_coach_id").value(fx.head().toString()))
+                .andExpect(jsonPath("$.data.void_reason").value("Wrong player"));
+        Map<String, Object> row = jdbc.queryForMap(
+                "SELECT status, voided_at, voided_by_coach_id, void_reason FROM evaluations WHERE evaluation_id = ?",
+                evaluation);
+        assertEquals("VOIDED", row.get("status"));
+        assertEquals(fx.head(), row.get("voided_by_coach_id"));
+        assertEquals("Wrong player", row.get("void_reason"));
+        assertTrue(row.get("voided_at") != null, "evaluations_void_check requires voided_at");
+        assertEquals(eventMetrics.size(), jdbc.queryForObject(
+                "SELECT count(*) FROM evaluation_results WHERE evaluation_id = ?", Integer.class, evaluation),
+                "voiding keeps the evidence");
+
+        voidEvaluation(fx.present(), evaluation, "head", "again").andExpect(status().isConflict());
         postInEvent(fx.present(), event, eventMetrics, "head", fx.academyId()).andExpect(status().isCreated());
         assertEquals(2, evaluations(event, fx.present()));
+    }
+
+    /** DP-2.4, T4.5-D1/D2: creator, current head coach and admins in scope read; only coaches with access void. */
+    @Test
+    void readAndVoidFollowTheEvaluationAccessPolicy() throws Exception {
+        UUID event = event(fx.session(), "IN_PROGRESS");
+        UUID evaluation = evaluationId(postInEvent(fx.present(), event, eventMetrics, "assistant", fx.academyId())
+                .andExpect(status().isCreated()));
+
+        get(fx.present(), evaluation, coachJwt("assistant")).andExpect(status().isOk());      // creator
+        get(fx.present(), evaluation, coachJwt("head")).andExpect(status().isOk());           // current head coach
+        get(fx.present(), evaluation, adminJwt("admin")).andExpect(status().isOk());          // admin in scope
+        get(fx.present(), evaluation, coachJwt("outsider")).andExpect(status().isNotFound()); // assistant, not creator
+        get(fx.present(), evaluation, coachJwt("fitness")).andExpect(status().isNotFound());
+        get(fx.present(), evaluation, coachJwt("foreign")).andExpect(status().isNotFound());
+        get(fx.present(), evaluation, adminJwt("other-admin")).andExpect(status().isNotFound());
+        get(fx.late(), evaluation, coachJwt("head")).andExpect(status().isNotFound());       // another player's path
+
+        voidEvaluation(fx.present(), evaluation, "outsider", "x").andExpect(status().isNotFound());
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                        .post("/api/v1/players/{playerId}/evaluations/{id}/void", fx.present(), evaluation)
+                        .with(adminJwt("admin")).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"reason\":\"x\"}"))
+                .andExpect(status().isForbidden());                                              // admins never void
+        assertEquals("COMPLETED", jdbc.queryForObject(
+                "SELECT status FROM evaluations WHERE evaluation_id = ?", String.class, evaluation));
+    }
+
+    /** T4.5-D3: voiding is allowed after the session closes; then the event can be cancelled (DP-2.2). */
+    @Test
+    void voidingWorksOnClosedSessionsAndUnblocksCancellingTheEvent() throws Exception {
+        UUID wrongBlock = event(fx.session(), "IN_PROGRESS");
+        UUID first = evaluationId(postInEvent(fx.present(), wrongBlock, eventMetrics, "head", fx.academyId())
+                .andExpect(status().isCreated()));
+        UUID second = evaluationId(postInEvent(fx.late(), wrongBlock, eventMetrics, "head", fx.academyId())
+                .andExpect(status().isCreated()));
+
+        cancelEvent(wrongBlock).andExpect(status().isConflict());     // non-voided evaluations block the cancel
+        voidEvaluation(fx.present(), first, "head", "Recorded in the wrong block").andExpect(status().isOk());
+        cancelEvent(wrongBlock).andExpect(status().isConflict());     // one is still not voided
+        voidEvaluation(fx.late(), second, "head", "Recorded in the wrong block").andExpect(status().isOk());
+        cancelEvent(wrongBlock).andExpect(status().isOk());
+
+        // D3: an evaluation can still be voided after its event and its session are closed
+        UUID finished = event(fx.session(), "IN_PROGRESS");
+        UUID third = evaluationId(postInEvent(fx.present(), finished, eventMetrics, "head", fx.academyId())
+                .andExpect(status().isCreated()));
+        jdbc.update("UPDATE session_evaluation_events SET status = 'COMPLETED', ended_at = started_at + interval "
+                + "'1 minute' WHERE session_event_id = ?", finished);
+        jdbc.update("UPDATE training_sessions SET status = 'COMPLETED', ended_at = started_at + interval '1 hour' "
+                + "WHERE session_id = ?", fx.session());
+        voidEvaluation(fx.present(), third, "head", "Found after the session").andExpect(status().isOk());
     }
 
     /** Rule 9: the second evaluation with the same template warns, but is recorded. */
@@ -251,6 +324,34 @@ class EvaluationEventPostgresIntegrationTest {
     }
 
     // ---- helpers ------------------------------------------------------------------------------------------------
+
+    private UUID evaluationId(ResultActions created) throws Exception {
+        return UUID.fromString(objectMapper.readTree(created.andReturn().getResponse().getContentAsString())
+                .path("data").path("evaluation_id").asString());
+    }
+
+    private ResultActions get(UUID player, UUID evaluation, JwtRequestPostProcessor jwt) throws Exception {
+        return mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                .get("/api/v1/players/{playerId}/evaluations/{id}", player, evaluation).with(jwt));
+    }
+
+    private ResultActions voidEvaluation(UUID player, UUID evaluation, String coach, String reason) throws Exception {
+        return mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                .post("/api/v1/players/{playerId}/evaluations/{id}/void", player, evaluation)
+                .with(coachJwt(coach)).contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(Map.of("reason", reason))));
+    }
+
+    private ResultActions cancelEvent(UUID event) throws Exception {
+        return mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                .post("/api/v1/evaluation-events/{id}/cancel", event)
+                .header("X-Academy-Id", fx.academyId()).with(coachJwt("head")));
+    }
+
+    private JwtRequestPostProcessor adminJwt(String handle) {
+        return jwt().jwt(token -> token.subject(factory.subject(handle)))
+                .authorities(List.of(new SimpleGrantedAuthority("ROLE_ACADEMY_ADMIN")));
+    }
 
     private ResultActions postInEvent(UUID player, UUID event, List<UUID> metrics, String coach, UUID academyId)
             throws Exception {
@@ -345,6 +446,10 @@ class EvaluationEventPostgresIntegrationTest {
             factory.currentCoach("outsider", "Outsider", category, CoachRoleCode.ASSISTANT, today);
             factory.currentCoach("fitness", "Fitness", category, CoachRoleCode.FITNESS_COACH, today);
             factory.currentCoach("foreign", "Foreign", otherCategory, CoachRoleCode.HEAD_COACH, today);
+            entityManager.persist(AcademyAdminEntity.builder().user(factory.user("admin", "Admin", "Academy"))
+                    .academy(academy).status(Status.ACTIVE).build());
+            entityManager.persist(AcademyAdminEntity.builder().user(factory.user("other-admin", "Admin", "Other"))
+                    .academy(otherAcademy).status(Status.ACTIVE).build());
 
             TrainingSessionEntity session = factory.session(category.getAcademyCategoryId(), head.getCoachId(), null,
                     "Eval events session", now, TrainingSessionStatus.IN_PROGRESS, now, null);

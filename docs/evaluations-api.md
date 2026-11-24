@@ -24,7 +24,8 @@ Creating or deleting a coach account, changing global profile names, and changin
 | Method | Path | Behavior |
 | --- | --- | --- |
 | POST | `/api/v1/players/{playerId}/evaluations` | Records a completed evaluation. COACH role required, plus current coach and player assignments in the same academy category. With `session_event_id`, the event rules below apply instead. |
-| GET | `/api/v1/players/{playerId}/evaluations/{evaluationId}` | Retrieves an evaluation created by the authenticated coach. |
+| GET | `/api/v1/players/{playerId}/evaluations/{evaluationId}` | Retrieves an evaluation. Readable by the coach who recorded it, the current `HEAD_COACH` of its category, and `SYSTEM_ADMIN` or the `ACADEMY_ADMIN` of its academy. Anyone else gets 404. |
+| POST | `/api/v1/players/{playerId}/evaluations/{evaluationId}/void` | Voids an evaluation (Sprint 4). See [Voiding an evaluation](#voiding-an-evaluation-sprint-4). |
 
 Staff profile routes under `/api/v1/players/**` and `/api/v1/coaches/**` that address a resource by ID require
 `X-Academy-Id`. The backend resolves the active academy and category assignments for each request. A coach must
@@ -39,9 +40,10 @@ assigned to multiple academies is therefore affected globally. The code does not
 belong to an academy administrator, only a system administrator, or should become academy-local data; this decision
 is pending, so the API's current mutation permissions are documented rather than changed here.
 
-Evaluation reads are limited to the coach who created the evaluation. Other coaches receive 404 even if they share
-the academy or category; this avoids exposing player data through evaluation IDs. If academy-wide evaluator access is
-desired, it needs an explicit policy decision.
+Evaluation reads follow [ADR-0004](adr/ADR-0004-evaluation-events.md) (DP-2.4, Sprint 4). The coach who recorded
+the evaluation, the current `HEAD_COACH` of its category, and `SYSTEM_ADMIN` or the `ACADEMY_ADMIN` of its academy
+can read it. Other coaches receive 404 even if they share the academy or category, so evaluation IDs do not expose
+player data. Collective visibility across the whole category is decided in Sprint 6.
 
 The current official catalog has no criterion with `laterality_mode = REQUIRED`. Some criteria use `OPTIONAL`, while
 others use `NONE`. The create API validates a supplied side for each result but does not require a LEFT/RIGHT pair.
@@ -117,6 +119,28 @@ needs both to enter data.
 { "template_id": "…", "template_version": 1, "session_event_id": "…",
   "results": [ { "criterion_id": "…", "level": 2 }, { "criterion_id": "…", "level": 3 } ] }
 ```
+
+## Voiding an evaluation (Sprint 4)
+
+`POST /api/v1/players/{playerId}/evaluations/{evaluationId}/void` with `{"reason": "…"}` marks an evaluation as
+`VOIDED`. Nothing is deleted: the results stay, and the evaluation records when, who and why.
+
+- **Who:** the coach who recorded the evaluation, or the current `HEAD_COACH` of its category. The route requires the
+  `COACH` role, so administrators get 403: `voided_by_coach_id` needs a coach. A caller who can read the evaluation but
+  not void it also gets 403. Anyone else gets 404.
+- **Reason:** required, 1–500 characters after trimming (400 otherwise).
+- **Author and time:** `voided_by_coach_id` comes from the JWT and `voided_at` from the server clock. The body cannot
+  set them, and unknown fields are rejected with 400.
+- **State:** only a `COMPLETED` evaluation can be voided. A second void returns 409. Voiding is allowed in any session
+  or event state, so mistakes found after a session closes can still be corrected.
+- **Effect:**
+  - a voided evaluation frees its event for that player, so the player can be evaluated again in the same event;
+  - an event can be cancelled once all of its evaluations are voided.
+- **Concurrency:** an evaluation that belongs to a session is voided under the session lock, so it cannot interleave
+  with a new evaluation or with cancelling the event.
+
+The response is the evaluation with `status: "VOIDED"`, `voided_at`, `voided_by_coach_id` and `void_reason`. These
+fields are also returned when reading the evaluation, and are `null` while it is not voided.
 
 **Known debt (R-11).** Outside an event, a coach who asks for an existing player without a current assignment gets 403,
 while an unknown player gets 404, so the difference reveals that the player exists. The event path returns 404
