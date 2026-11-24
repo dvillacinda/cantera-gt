@@ -142,7 +142,7 @@ Dos pruebas llamadas `gap…` documentan reglas que se mantienen en el servicio 
 ### Eventos y métricas (T4.3)
 
 - `SessionEvaluationEventServiceTest`: el ciclo de vida del evento como tabla parametrizada (estado × acción; una transición rechazada nunca hace flush). También cubre el `block_order` asignado por el servidor, las métricas predeterminadas, las selecciones de métricas no válidas (400), que solo se acepten plantillas oficiales `ACTIVE`, las verificaciones del estado de la sesión y el orden autorizar → bloquear → releer → validar.
-- `TrainingSessionServiceTest`: una sesión con un evento `IN_PROGRESS` no se puede completar ni cancelar (E9), y cancelar una sesión cancela sus eventos `PLANNED`.
+- `TrainingSessionServiceTest`: una sesión con un evento `IN_PROGRESS` no se puede completar ni cancelar (E9), y completar o cancelar una sesión cancela sus eventos `PLANNED`.
 - `SessionEvaluationEventSecurityHttpTest`: para cada ruta, 401 sin token, 403 para `PLAYER` y para un entrenador sin acceso de administración, 404 para otra academia y 400 sin `X-Academy-Id`. También comprueba la validación del cuerpo (plantilla faltante, `block_order` enviado por el cliente, camelCase, 0 o 4 métricas) y la respuesta en snake_case.
 - `SessionEvaluationEventRequestValidationTest`: Bean Validation y snake_case de las dos solicitudes.
 - `SessionEvaluationEventPostgresIntegrationTest` se ejecuta contra `postgres-test`. Comprueba el mapeo de las entidades contra V3 y V9 (`validate` de Hibernate), los números de bloque consecutivos, las métricas predeterminadas, el reemplazo de métricas bajo el trigger de «como máximo 3», el ciclo de vida acoplado a la sesión, la cascada a los eventos `PLANNED`, el 409 al cancelar un evento con evaluaciones no anuladas, el aislamiento entre academias y que el listado use un número constante de consultas (`Statistics` de Hibernate).
@@ -156,5 +156,5 @@ Las dos pruebas de concurrencia (dos creaciones a la vez y dos llamadas `start` 
 Ejecute la suite completa contra `postgres-test`. No necesita `@Disabled` ni omite pruebas. `KeycloakJwtIntegrationTest` solo se omite cuando faltan las tres variables de Keycloak.
 
 ```powershell
-mvn -o test   # 256 pruebas al final de Sprint 3; 281 tras T4.2; 370 tras T4.3
+mvn -o test   # 256 pruebas al final de Sprint 3; 281 tras T4.2; 371 tras T4.3
 ```

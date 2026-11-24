@@ -127,6 +127,7 @@ class SessionEvaluationEventPostgresIntegrationTest {
     void eventLifecycleFollowsItsSessionAndClosedEventsAreImmutable() {
         UUID session = newSession(TrainingSessionStatus.PLANNED);
         UUID event = create(session, game, null).sessionEventId();
+        UUID neverStarted = create(session, game, null).sessionEventId();
 
         assertThrows(ConflictException.class, () -> eventService.start(event, fx.academyId(), null),
                 "an event cannot start before its session");
@@ -150,6 +151,8 @@ class SessionEvaluationEventPostgresIntegrationTest {
 
         sessionService.complete(session, fx.academyId(), null);
         assertEquals("COMPLETED", sessionStatus(session));
+        assertEquals("COMPLETED", eventStatus(event));
+        assertEquals("CANCELLED", eventStatus(neverStarted), "completing the session cancels its PLANNED events");
         assertThrows(ConflictException.class, () -> create(session, game, null));
     }
 

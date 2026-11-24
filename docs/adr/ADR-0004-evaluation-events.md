@@ -45,6 +45,8 @@ inside a session where coaches record evidence for the convened players. Facts v
    - Completing or cancelling a session that has `IN_PROGRESS` events returns 409.
    - Cancelling an event that has non-voided evaluations returns 409: they must be voided first.
    - Cancelling a session cancels its `PLANNED` events, which have no evidence (confirmed in T4.3-D5, 2026-11-23).
+     Completing a session does the same (T4.3 POST-GATE, option B, 2026-11-23), so a closed session never keeps
+     `PLANNED` events.
    - T4.3 decisions (approved 2026-11-23, "APRUEBO DEFAULTS"):
      - Events live in the `training_session` package, as children of the session aggregate. This avoids a package
        cycle, because the session lifecycle must see its events.
