@@ -3,7 +3,6 @@ package com.dvillacinda.canteragt.evaluation_template.service;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
-import java.util.EnumSet;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -43,7 +42,7 @@ import lombok.RequiredArgsConstructor;
 @Service
 @RequiredArgsConstructor
 public class SessionEventEvaluationContextService {
-    static final Set<AttendanceStatus> EVALUABLE_ATTENDANCE = EnumSet.of(AttendanceStatus.PRESENT, AttendanceStatus.LATE);
+    static final Set<AttendanceStatus> EVALUABLE_ATTENDANCE = AttendanceStatus.EVALUABLE;
     static final String VOIDED = "VOIDED";
 
     private final SessionEvaluationEventRepository eventRepository;

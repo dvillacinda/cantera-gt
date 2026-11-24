@@ -2,8 +2,8 @@
 
 - **Status:** Draft. Decisions approved on 2026-11-20 (DP-2, "APRUEBO DEFAULTS"). The ADR is published as Accepted
   in T4.7, once the implementation and its tests exist.
-- **Implementation:** T4.2 (V9), T4.3 (events and metrics), T4.4 (evaluation link) and T4.5 (voiding and reads)
-  done; pending T4.6 rotation
+- **Implementation:** T4.2 (V9), T4.3 (events and metrics), T4.4 (evaluation link), T4.5 (voiding and reads) and
+  T4.6 (players still to observe) done; pending T4.7 (E2E and closing)
 
 ## Context
 
@@ -104,6 +104,15 @@ inside a session where coaches record evidence for the convened players. Facts v
        (D4).
      - The void route only admits `COACH`, so the assumption above holds at the boundary: administrators get 403.
        A caller who can read but not void gets 403; anyone else gets 404.
+   - T4.6 decisions (approved 2026-11-23, "APRUEBO DEFAULTS"). `GET /evaluation-events/{id}/pending-players`
+     supports rotation:
+     - it requires the session read access, not data entry access (D1);
+     - it answers in any event state (D2);
+     - it reuses the roster response, so it exposes no sensitive data (D3);
+     - one query filters by session, category and attendance `PRESENT`/`LATE` and excludes players with a non-voided
+       evaluation in the event, ordered by last name, first name and player id (D4);
+     - it takes no lock, because it is a read-only snapshot (D5).
+     Players whose attendance is still `PENDING` are not listed (assumption to confirm with the pilot head coach).
 5. **Concurrency (DP-2.5, option A).**
    - Every mutation of events, and of evaluations tied to an event, takes `TrainingSessionLock` after authorization
      and inside the transaction.

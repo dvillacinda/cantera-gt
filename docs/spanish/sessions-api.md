@@ -129,6 +129,7 @@ Un evento de evaluación es un bloque dentro de una sesión en el que los entren
 | POST | `/api/v1/training-sessions/{sessionId}/evaluation-events` | 201 | 400 plantilla no oficial o no `ACTIVE`, o métricas no válidas · 403 · 404 · 409 sesión cerrada |
 | GET | `/api/v1/training-sessions/{sessionId}/evaluation-events` | 200, en orden de bloque | 404 |
 | GET | `/api/v1/evaluation-events/{eventId}` | 200 | 404 |
+| GET | `/api/v1/evaluation-events/{eventId}/pending-players` | 200, por apellido y nombre | 404 |
 | PUT | `/api/v1/evaluation-events/{eventId}/metrics` | 200 | 400 métricas no válidas · 409 evento no está `PLANNED` o sesión cerrada |
 | POST | `/api/v1/evaluation-events/{eventId}/start` | 200 | 409 evento no está `PLANNED` o sesión no está `IN_PROGRESS` |
 | POST | `/api/v1/evaluation-events/{eventId}/complete` | 200 | 409 evento no está `IN_PROGRESS` |
@@ -160,6 +161,13 @@ PLANNED ──start──► IN_PROGRESS ──complete──► COMPLETED
 - `COMPLETED` y `CANCELLED` son estados finales.
 
 **Campos del evento:** `session_event_id`, `session_id`, `template_id`, `template_code`, `template_name`, `block_order`, `status`, `started_at`, `ended_at`, `created_at`, `updated_at` y `metrics` (`criterion_id`, `code`, `name`, `unit`, `display_order`).
+
+**Jugadores pendientes de observar (T4.6).** `GET …/pending-players` apoya la rotación entre bloques. Lista a los jugadores convocados en la sesión del evento que:
+
+- tienen asistencia `PRESENT` o `LATE` (los que siguen `PENDING` no aparecen hasta que se toma su asistencia), y
+- no tienen en **este** evento una evaluación que no esté anulada. Un jugador cuyas evaluaciones en el evento están todas anuladas vuelve a quedar pendiente; las evaluaciones en otros eventos de la sesión no cuentan.
+
+Requiere el acceso de consulta, responde en cualquier estado del evento (en un evento cerrado muestra quién quedó sin observar) y no toma bloqueo: es una foto del momento. Los elementos tienen los campos de la lista de participantes (`session_player_id`, `player_id`, `first_name`, `last_name`, `principal_position`, `attendance_status`, `updated_at`), ordenados por apellido, nombre e ID del jugador. Una lista vacía significa que no queda nadie. La lista sale de una sola consulta, sin importar el número de jugadores.
 
 ## Garantías de integridad
 

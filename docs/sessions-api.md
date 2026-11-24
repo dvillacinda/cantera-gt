@@ -153,6 +153,7 @@ The decisions are in [ADR-0004](adr/ADR-0004-evaluation-events.md). Creating and
 | POST | `/api/v1/training-sessions/{sessionId}/evaluation-events` | 201 | 400 template not official and `ACTIVE`, or invalid metrics · 403 · 404 · 409 session closed |
 | GET | `/api/v1/training-sessions/{sessionId}/evaluation-events` | 200, in block order | 404 |
 | GET | `/api/v1/evaluation-events/{eventId}` | 200 | 404 |
+| GET | `/api/v1/evaluation-events/{eventId}/pending-players` | 200, by last name and first name | 404 |
 | PUT | `/api/v1/evaluation-events/{eventId}/metrics` | 200 | 400 invalid metrics · 409 event not `PLANNED` or session closed |
 | POST | `/api/v1/evaluation-events/{eventId}/start` | 200 | 409 event not `PLANNED`, or session not `IN_PROGRESS` |
 | POST | `/api/v1/evaluation-events/{eventId}/complete` | 200 | 409 event not `IN_PROGRESS` |
@@ -192,6 +193,18 @@ PLANNED ──start──► IN_PROGRESS ──complete──► COMPLETED
 **Event fields:** `session_event_id`, `session_id`, `template_id`, `template_code`, `template_name`, `block_order`,
 `status`, `started_at`, `ended_at`, `created_at`, `updated_at` and `metrics` (`criterion_id`, `code`, `name`, `unit`,
 `display_order`).
+
+**Players still to observe (T4.6).** `GET …/pending-players` supports rotation between blocks. It lists the
+players convened in the event's session who:
+
+- have attendance `PRESENT` or `LATE` (players still `PENDING` are not listed until their attendance is taken), and
+- have no evaluation in **this** event that is not voided. A player whose evaluations in the event are all voided is
+  pending again; evaluations in other events of the session do not count.
+
+It requires the read access, works in any event state (a closed event shows who was left without an observation) and
+takes no lock: it is a snapshot. The items have the roster fields (`session_player_id`, `player_id`, `first_name`,
+`last_name`, `principal_position`, `attendance_status`, `updated_at`), ordered by last name, first name and player id.
+An empty list means nobody is left. The list comes from one query, whatever the number of players.
 
 ## Integrity guarantees
 

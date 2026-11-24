@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
@@ -17,6 +18,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -39,6 +41,10 @@ import org.springframework.security.core.Authentication;
 
 import com.dvillacinda.canteragt.academy.entity.AcademyEntity;
 import com.dvillacinda.canteragt.academy_category.entity.AcademyCategoryEntity;
+import com.dvillacinda.canteragt.player.entity.PlayerEntity;
+import com.dvillacinda.canteragt.position.entity.PositionEntity;
+import com.dvillacinda.canteragt.position.enums.PositionCode;
+import com.dvillacinda.canteragt.user.entity.UserEntity;
 import com.dvillacinda.canteragt.evaluation_template.entity.EvaluationCriterionEntity;
 import com.dvillacinda.canteragt.evaluation_template.entity.EvaluationTemplateEntity;
 import com.dvillacinda.canteragt.evaluation_template.enums.EvaluationTemplateStatus;
@@ -52,12 +58,16 @@ import com.dvillacinda.canteragt.training_session.dto.SessionEventMetricsUpdateR
 import com.dvillacinda.canteragt.training_session.entity.SessionEvaluationEventEntity;
 import com.dvillacinda.canteragt.training_session.entity.SessionEventMetricEntity;
 import com.dvillacinda.canteragt.training_session.entity.SessionEventMetricId;
+import com.dvillacinda.canteragt.training_session.entity.SessionPlayerEntity;
 import com.dvillacinda.canteragt.training_session.entity.TrainingSessionEntity;
+import com.dvillacinda.canteragt.training_session.enums.AttendanceStatus;
 import com.dvillacinda.canteragt.training_session.enums.SessionEvaluationEventStatus;
 import com.dvillacinda.canteragt.training_session.enums.TrainingSessionStatus;
 import com.dvillacinda.canteragt.training_session.mapper.SessionEvaluationEventMapper;
+import com.dvillacinda.canteragt.training_session.mapper.SessionPlayerMapper;
 import com.dvillacinda.canteragt.training_session.repository.SessionEvaluationEventRepository;
 import com.dvillacinda.canteragt.training_session.repository.SessionEventMetricRepository;
+import com.dvillacinda.canteragt.training_session.repository.SessionPlayerRepository;
 import com.dvillacinda.canteragt.training_session.repository.TrainingSessionRepository;
 
 import jakarta.persistence.EntityManager;
@@ -79,6 +89,7 @@ class SessionEvaluationEventServiceTest {
     @Mock private EvaluationCriterionRepository criterionRepository;
     @Mock private TrainingSessionAccessPolicy accessPolicy;
     @Mock private TrainingSessionLock sessionLock;
+    @Mock private SessionPlayerRepository sessionPlayerRepository;
     @Mock private EntityManager entityManager;
     @Mock private Authentication authentication;
 
@@ -95,7 +106,8 @@ class SessionEvaluationEventServiceTest {
     void setUp() {
         service = new SessionEvaluationEventService(trainingSessionRepository, eventRepository, metricRepository,
                 templateRepository, criterionRepository, accessPolicy, sessionLock,
-                new SessionEvaluationEventMapper("America/Guatemala"), entityManager, CLOCK);
+                new SessionEvaluationEventMapper("America/Guatemala"), sessionPlayerRepository,
+                new SessionPlayerMapper("America/Guatemala"), entityManager, CLOCK);
         template = template(true, EvaluationTemplateStatus.ACTIVE);
         first = criterion("A_FIRST", 1, true, true);
         second = criterion("B_SECOND", 2, true, true);
@@ -416,6 +428,73 @@ class SessionEvaluationEventServiceTest {
         assertEquals(List.of("B_SECOND", "C_THIRD"), events.get(1).metrics().stream().map(m -> m.code()).toList());
         verify(metricRepository, times(1)).findForEvents(anyList());
         verify(accessPolicy).requireReadAccess(authentication, ACADEMY_ID, CATEGORY_ID);
+    }
+
+    // ---- pending players (T4.6) ---------------------------------------------------------------------------------
+
+    @ParameterizedTest
+    @EnumSource(SessionEvaluationEventStatus.class)
+    void pendingPlayersAuthorizesReadAccessAndQueriesTheEventInAnyState(SessionEvaluationEventStatus status) {
+        givenEvent(TrainingSessionStatus.IN_PROGRESS, status);
+        SessionPlayerEntity entry = rosterEntry("Ana", "Lopez", PositionCode.CM, AttendanceStatus.LATE);
+        when(sessionPlayerRepository.findPendingForEvent(SESSION_ID, CATEGORY_ID, EVENT_ID, AttendanceStatus.EVALUABLE))
+                .thenReturn(List.of(entry));
+
+        var pending = service.pendingPlayers(EVENT_ID, ACADEMY_ID, authentication);
+
+        InOrder order = inOrder(accessPolicy, sessionPlayerRepository);
+        order.verify(accessPolicy).requireReadAccess(authentication, ACADEMY_ID, CATEGORY_ID);
+        order.verify(sessionPlayerRepository)
+                .findPendingForEvent(SESSION_ID, CATEGORY_ID, EVENT_ID, AttendanceStatus.EVALUABLE);
+        assertEquals(1, pending.size());
+        assertEquals(entry.getPlayer().getPlayerId(), pending.get(0).playerId());
+        assertEquals("Ana", pending.get(0).firstName());
+        assertEquals("Lopez", pending.get(0).lastName());
+        assertEquals("CM", pending.get(0).principalPosition());
+        assertEquals(AttendanceStatus.LATE, pending.get(0).attendanceStatus());
+        verify(sessionLock, never()).acquire(any());
+    }
+
+    @Test
+    void pendingPlayersOnlyAsksForPresentOrLatePlayers() {
+        assertEquals(EnumSet.of(AttendanceStatus.PRESENT, AttendanceStatus.LATE), AttendanceStatus.EVALUABLE);
+    }
+
+    @Test
+    void pendingPlayersWithNobodyLeftIsAnEmptyList() {
+        givenEvent(TrainingSessionStatus.IN_PROGRESS, SessionEvaluationEventStatus.IN_PROGRESS);
+        when(sessionPlayerRepository.findPendingForEvent(any(), any(), any(), any())).thenReturn(List.of());
+
+        assertEquals(List.of(), service.pendingPlayers(EVENT_ID, ACADEMY_ID, authentication));
+    }
+
+    @Test
+    void pendingPlayersOutsideTheAcademyIs404BeforeAuthorization() {
+        when(eventRepository.findInAcademy(EVENT_ID, ACADEMY_ID)).thenReturn(Optional.empty());
+
+        assertThrows(NotFoundException.class, () -> service.pendingPlayers(EVENT_ID, ACADEMY_ID, authentication));
+        verify(accessPolicy, never()).requireReadAccess(any(), any(), any());
+        verify(sessionPlayerRepository, never()).findPendingForEvent(any(), any(), any(), any());
+    }
+
+    @Test
+    void pendingPlayersStopsWhenReadAccessIsDenied() {
+        givenEvent(TrainingSessionStatus.IN_PROGRESS, SessionEvaluationEventStatus.IN_PROGRESS);
+        doThrow(new NotFoundException("out of scope"))
+                .when(accessPolicy).requireReadAccess(authentication, ACADEMY_ID, CATEGORY_ID);
+
+        assertThrows(NotFoundException.class, () -> service.pendingPlayers(EVENT_ID, ACADEMY_ID, authentication));
+        verify(sessionPlayerRepository, never()).findPendingForEvent(any(), any(), any(), any());
+    }
+
+    private static SessionPlayerEntity rosterEntry(String firstName, String lastName, PositionCode position,
+            AttendanceStatus attendance) {
+        PositionEntity positionEntity = PositionEntity.builder().positionCode(position).build();
+        UserEntity user = UserEntity.builder().firstName(firstName).lastName(lastName).build();
+        PlayerEntity player = PlayerEntity.builder().playerId(UUID.randomUUID()).user(user)
+                .principalPosition(positionEntity).build();
+        return SessionPlayerEntity.builder().sessionPlayerId(UUID.randomUUID()).player(player)
+                .attendanceStatus(attendance).build();
     }
 
     // ---- fixtures -----------------------------------------------------------------------------------------------

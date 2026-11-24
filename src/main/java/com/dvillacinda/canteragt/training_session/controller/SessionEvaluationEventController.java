@@ -21,6 +21,7 @@ import com.dvillacinda.canteragt.shared.dto.ApiResponse;
 import com.dvillacinda.canteragt.training_session.dto.SessionEvaluationEventCreateRequest;
 import com.dvillacinda.canteragt.training_session.dto.SessionEvaluationEventResponse;
 import com.dvillacinda.canteragt.training_session.dto.SessionEventMetricsUpdateRequest;
+import com.dvillacinda.canteragt.training_session.dto.SessionPlayerResponse;
 import com.dvillacinda.canteragt.training_session.service.SessionEvaluationEventService;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -69,6 +70,19 @@ public class SessionEvaluationEventController {
             Authentication authentication) {
         return ResponseEntity.ok(new ApiResponse<>(true, HttpStatus.OK, "Evaluation event found successfully",
                 eventService.get(eventId, academyId, authentication)));
+    }
+
+    @GetMapping("/evaluation-events/{eventId}/pending-players")
+    @Operation(summary = "List the players still to observe in an evaluation event",
+            description = "Players convened in the session with attendance PRESENT or LATE who have no evaluation in "
+                    + "this event that is not voided (a player with only voided evaluations is pending again). "
+                    + "Ordered by last name and first name. Same fields as the roster; available in any event state.")
+    public ResponseEntity<ApiResponse<List<SessionPlayerResponse>>> pendingPlayers(
+            @PathVariable UUID eventId,
+            @RequestHeader("X-Academy-Id") UUID academyId,
+            Authentication authentication) {
+        return ResponseEntity.ok(new ApiResponse<>(true, HttpStatus.OK, "Pending players found successfully",
+                eventService.pendingPlayers(eventId, academyId, authentication)));
     }
 
     @PutMapping("/evaluation-events/{eventId}/metrics")

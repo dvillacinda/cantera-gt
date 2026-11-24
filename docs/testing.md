@@ -287,6 +287,26 @@ passes.
 `EvaluationHttpPostgresIntegrationTest` changed one assertion, as approved in T4.5-D1: a current `HEAD_COACH` of the
 category now reads a colleague's evaluation (200 instead of 404). Every other 404 in that test is unchanged.
 
+### Players still to observe (T4.6)
+
+- `SessionEvaluationEventServiceTest` adds:
+  - read access is checked before the query, in every event state, and no lock is taken;
+  - only `PRESENT` and `LATE` are requested;
+  - an empty list, and 404 before authorization out of the academy.
+- `SessionEvaluationEventSecurityHttpTest` adds the route to the 401, `PLAYER` 403, 404 and missing-header 400 cases,
+  and 200 in snake_case for `SYSTEM_ADMIN`, `ACADEMY_ADMIN` and `COACH`, without `email`.
+- `SessionEventPendingPlayersPostgresIntegrationTest`, over HTTP with the real policy:
+  - the guide's scenario: 20 convened players, 3 not present (`ABSENT`, `JUSTIFIED`, `PENDING`), 2 evaluated in the
+    event and 1 with only a voided evaluation. The result is 15 players in last-name and first-name order, with the
+    voided one included. A player evaluated in another event of the session is still pending;
+  - nobody is left once everyone is evaluated, and a closed event still answers;
+  - the head coach, the fitness coach and the academy admin get 200; a coach or an admin of another academy, and an
+    unknown event, get 404;
+  - the number of statements is the same for 17 and 2 players, with no lazy fetches (no N+1).
+
+The query was validated by mutation. Counting voided evaluations as observations, or ordering by player id, makes the
+scenario test fail.
+
 ### Test data factory
 
 `support/TestDataFactory` builds PostgreSQL fixtures: academy, academy category with its season, location, users,
@@ -299,5 +319,5 @@ Run the whole suite against `postgres-test`. It needs no `@Disabled` and skips n
 skips itself only when the three Keycloak variables are missing.
 
 ```powershell
-mvn -o test   # 256 tests at the end of Sprint 3; 281 after T4.2; 371 after T4.3; 411 after T4.4; 433 after T4.5
+mvn -o test   # 256 tests at the end of Sprint 3; 281 after T4.2; 371 after T4.3; 411 after T4.4; 433 after T4.5; 453 after T4.6
 ```

@@ -209,6 +209,21 @@ La prueba del duplicado concurrente se validó por mutación. Al quitar `Trainin
 
 `EvaluationHttpPostgresIntegrationTest` cambió una aserción, como se aprobó en T4.5-D1: un `HEAD_COACH` vigente de la categoría ahora lee la evaluación de un colega (200 en lugar de 404). Los demás 404 de esa prueba no cambiaron.
 
+### Jugadores pendientes de observar (T4.6)
+
+- `SessionEvaluationEventServiceTest` agrega:
+  - el acceso de consulta se verifica antes de la consulta, en todos los estados del evento, y no se toma bloqueo;
+  - solo se piden `PRESENT` y `LATE`;
+  - la lista vacía, y 404 antes de autorizar fuera de la academia.
+- `SessionEvaluationEventSecurityHttpTest` agrega la ruta a los casos 401, 403 de `PLAYER`, 404 y 400 sin encabezado, y 200 en snake_case para `SYSTEM_ADMIN`, `ACADEMY_ADMIN` y `COACH`, sin `email`.
+- `SessionEventPendingPlayersPostgresIntegrationTest`, por HTTP y con la política real:
+  - el escenario de la guía: 20 convocados, 3 no presentes (`ABSENT`, `JUSTIFIED`, `PENDING`), 2 evaluados en el evento y 1 solo con una evaluación anulada. El resultado son 15 jugadores ordenados por apellido y nombre, incluido el anulado. Un jugador evaluado en otro evento de la sesión sigue pendiente;
+  - no queda nadie cuando todos están evaluados, y un evento cerrado sigue respondiendo;
+  - el DT, el preparador físico y el administrador de la academia reciben 200; un entrenador o un administrador de otra academia, y un evento desconocido, reciben 404;
+  - el número de sentencias es el mismo con 17 y con 2 jugadores, sin cargas diferidas (sin N+1).
+
+La consulta se validó por mutación. Contar las evaluaciones anuladas como observaciones, u ordenar por ID de jugador, hace fallar la prueba del escenario.
+
 ### Fábrica de datos de prueba
 
 `support/TestDataFactory` crea datos de PostgreSQL para las pruebas: academia, categoría de academia con su temporada, ubicación, usuarios, entrenadores y jugadores, sus asignaciones y sesiones. Cada columna única lleva un sufijo aleatorio por fábrica, por lo que las pruebas no necesitan limpieza. `subject(handle)` devuelve el ID de Keycloak del usuario para utilizarlo como sujeto del JWT. Las pruebas de integración de sesiones lo usan. `EvaluationHttpPostgresIntegrationTest` conserva sus propios datos de prueba deliberadamente, porque constituye la evidencia de regresión para las evaluaciones.
@@ -216,5 +231,5 @@ La prueba del duplicado concurrente se validó por mutación. Al quitar `Trainin
 Ejecute la suite completa contra `postgres-test`. No necesita `@Disabled` ni omite pruebas. `KeycloakJwtIntegrationTest` solo se omite cuando faltan las tres variables de Keycloak.
 
 ```powershell
-mvn -o test   # 256 pruebas al final de Sprint 3; 281 tras T4.2; 371 tras T4.3; 411 tras T4.4; 433 tras T4.5
+mvn -o test   # 256 pruebas al final de Sprint 3; 281 tras T4.2; 371 tras T4.3; 411 tras T4.4; 433 tras T4.5; 453 tras T4.6
 ```

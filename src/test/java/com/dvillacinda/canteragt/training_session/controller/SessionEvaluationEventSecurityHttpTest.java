@@ -20,6 +20,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Configuration;
@@ -40,6 +41,8 @@ import com.dvillacinda.canteragt.shared.exception.NotFoundException;
 import com.dvillacinda.canteragt.shared.exception.UnauthorizedAccessException;
 import com.dvillacinda.canteragt.training_session.dto.SessionEvaluationEventResponse;
 import com.dvillacinda.canteragt.training_session.dto.SessionEventMetricResponse;
+import com.dvillacinda.canteragt.training_session.dto.SessionPlayerResponse;
+import com.dvillacinda.canteragt.training_session.enums.AttendanceStatus;
 import com.dvillacinda.canteragt.training_session.enums.SessionEvaluationEventStatus;
 import com.dvillacinda.canteragt.training_session.service.SessionEvaluationEventService;
 
@@ -100,7 +103,10 @@ class SessionEvaluationEventSecurityHttpTest {
                         "/api/v1/training-sessions/{id}/evaluation-events", SESSION_ID)
                         .header("X-Academy-Id", academy)),
                 Arguments.of("get", (RouteFactory) academy -> get(
-                        "/api/v1/evaluation-events/{id}", EVENT_ID).header("X-Academy-Id", academy))));
+                        "/api/v1/evaluation-events/{id}", EVENT_ID).header("X-Academy-Id", academy)),
+                Arguments.of("pending", (RouteFactory) academy -> get(
+                        "/api/v1/evaluation-events/{id}/pending-players", EVENT_ID)
+                        .header("X-Academy-Id", academy))));
     }
 
     @ParameterizedTest(name = "{0}")
@@ -166,6 +172,26 @@ class SessionEvaluationEventSecurityHttpTest {
                 .andExpect(jsonPath("$.data.metrics[0].display_order").value(1));
     }
 
+    @ParameterizedTest
+    @ValueSource(strings = { "SYSTEM_ADMIN", "ACADEMY_ADMIN", "COACH" })
+    void pendingPlayersReturns200InSnakeCaseForEveryStaffRole(String role) throws Exception {
+        UUID playerId = UUID.randomUUID();
+        when(eventService.pendingPlayers(eq(EVENT_ID), eq(ACADEMY_ID), any())).thenReturn(List.of(
+                new SessionPlayerResponse(UUID.randomUUID(), playerId, "Ana", "Lopez", "CM", AttendanceStatus.LATE,
+                        OffsetDateTime.parse("2026-11-23T10:00:00-06:00"))));
+
+        mockMvc.perform(get("/api/v1/evaluation-events/{id}/pending-players", EVENT_ID)
+                        .header("X-Academy-Id", ACADEMY_ID)
+                        .with(user("staff").roles(role)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].player_id").value(playerId.toString()))
+                .andExpect(jsonPath("$.data[0].first_name").value("Ana"))
+                .andExpect(jsonPath("$.data[0].last_name").value("Lopez"))
+                .andExpect(jsonPath("$.data[0].principal_position").value("CM"))
+                .andExpect(jsonPath("$.data[0].attendance_status").value("LATE"))
+                .andExpect(jsonPath("$.data[0].email").doesNotExist());
+    }
+
     @Test
     void stateConflictsAre409WithTheServiceMessage() throws Exception {
         when(eventService.start(eq(EVENT_ID), eq(ACADEMY_ID), any()))
@@ -213,6 +239,7 @@ class SessionEvaluationEventSecurityHttpTest {
             case "start", "complete", "cancel" -> post("/api/v1/evaluation-events/{id}/" + label, EVENT_ID);
             case "list" -> get("/api/v1/training-sessions/{id}/evaluation-events", SESSION_ID);
             case "get" -> get("/api/v1/evaluation-events/{id}", EVENT_ID);
+            case "pending" -> get("/api/v1/evaluation-events/{id}/pending-players", EVENT_ID);
             default -> throw new IllegalArgumentException(label);
         };
     }
@@ -225,6 +252,7 @@ class SessionEvaluationEventSecurityHttpTest {
         when(eventService.cancel(any(), eq(academyId), any())).thenThrow(ex);
         when(eventService.list(any(), eq(academyId), any())).thenThrow(ex);
         when(eventService.get(any(), eq(academyId), any())).thenThrow(ex);
+        when(eventService.pendingPlayers(any(), eq(academyId), any())).thenThrow(ex);
     }
 
     private static SessionEvaluationEventResponse response() {

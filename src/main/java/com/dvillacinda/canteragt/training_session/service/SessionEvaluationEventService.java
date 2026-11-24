@@ -28,15 +28,19 @@ import com.dvillacinda.canteragt.shared.exception.NotFoundException;
 import com.dvillacinda.canteragt.training_session.dto.SessionEvaluationEventCreateRequest;
 import com.dvillacinda.canteragt.training_session.dto.SessionEvaluationEventResponse;
 import com.dvillacinda.canteragt.training_session.dto.SessionEventMetricsUpdateRequest;
+import com.dvillacinda.canteragt.training_session.dto.SessionPlayerResponse;
 import com.dvillacinda.canteragt.training_session.entity.SessionEvaluationEventEntity;
 import com.dvillacinda.canteragt.training_session.entity.SessionEventMetricEntity;
 import com.dvillacinda.canteragt.training_session.entity.SessionEventMetricId;
 import com.dvillacinda.canteragt.training_session.entity.TrainingSessionEntity;
+import com.dvillacinda.canteragt.training_session.enums.AttendanceStatus;
 import com.dvillacinda.canteragt.training_session.enums.SessionEvaluationEventStatus;
 import com.dvillacinda.canteragt.training_session.enums.TrainingSessionStatus;
 import com.dvillacinda.canteragt.training_session.mapper.SessionEvaluationEventMapper;
+import com.dvillacinda.canteragt.training_session.mapper.SessionPlayerMapper;
 import com.dvillacinda.canteragt.training_session.repository.SessionEvaluationEventRepository;
 import com.dvillacinda.canteragt.training_session.repository.SessionEventMetricRepository;
+import com.dvillacinda.canteragt.training_session.repository.SessionPlayerRepository;
 import com.dvillacinda.canteragt.training_session.repository.TrainingSessionRepository;
 
 import jakarta.persistence.EntityManager;
@@ -63,6 +67,8 @@ public class SessionEvaluationEventService {
     private final TrainingSessionAccessPolicy accessPolicy;
     private final TrainingSessionLock sessionLock;
     private final SessionEvaluationEventMapper mapper;
+    private final SessionPlayerRepository sessionPlayerRepository;
+    private final SessionPlayerMapper playerMapper;
     private final EntityManager entityManager;
     private final Clock clock;
 
@@ -90,6 +96,22 @@ public class SessionEvaluationEventService {
         SessionEvaluationEventEntity event = findEvent(eventId, academyId);
         accessPolicy.requireReadAccess(authentication, academyId, categoryId(event.getTrainingSession()));
         return toResponse(event);
+    }
+
+    /**
+     * Players still to observe in an event (T4.6): convened with attendance PRESENT or LATE and without an evaluation
+     * in the event that is not voided, ordered by last name and first name. Read access, any event state, no lock: it
+     * is a snapshot, and concurrent data entry is serialized by the session lock and the unique index.
+     */
+    @Transactional(readOnly = true)
+    public List<SessionPlayerResponse> pendingPlayers(UUID eventId, UUID academyId, Authentication authentication) {
+        SessionEvaluationEventEntity event = findEvent(eventId, academyId);
+        TrainingSessionEntity session = event.getTrainingSession();
+        accessPolicy.requireReadAccess(authentication, academyId, categoryId(session));
+        return sessionPlayerRepository.findPendingForEvent(session.getSessionId(), categoryId(session),
+                        event.getSessionEventId(), AttendanceStatus.EVALUABLE).stream()
+                .map(playerMapper::toResponse)
+                .toList();
     }
 
     public SessionEvaluationEventResponse create(UUID sessionId, UUID academyId,

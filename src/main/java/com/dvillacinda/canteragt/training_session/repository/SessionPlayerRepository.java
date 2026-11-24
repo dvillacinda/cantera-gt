@@ -68,6 +68,31 @@ public interface SessionPlayerRepository extends JpaRepository<SessionPlayerEnti
     List<SessionPlayerEntity> findRosterEntries(
             @Param("sessionId") UUID sessionId, @Param("playerIds") Collection<UUID> playerIds);
 
+    /**
+     * Players still to observe in an event (T4.6): convened in the event's session and category, with one of the given
+     * attendance statuses, and without an evaluation in that event that is not voided. One query, no N+1.
+     */
+    @Query("""
+            select sp from SessionPlayerEntity sp
+              join fetch sp.player p
+              join fetch p.user u
+              join fetch p.principalPosition
+            where sp.trainingSession.sessionId = :sessionId
+              and sp.trainingSession.academyCategory.academyCategoryId = :academyCategoryId
+              and sp.attendanceStatus in :attendanceStatuses
+              and not exists (
+                  select 1 from EvaluationEntity e
+                  where e.sessionEvent.sessionEventId = :eventId
+                    and e.player.playerId = p.playerId
+                    and e.status <> 'VOIDED')
+            order by u.lastName, u.firstName, p.playerId
+            """)
+    List<SessionPlayerEntity> findPendingForEvent(
+            @Param("sessionId") UUID sessionId,
+            @Param("academyCategoryId") UUID academyCategoryId,
+            @Param("eventId") UUID eventId,
+            @Param("attendanceStatuses") Collection<AttendanceStatus> attendanceStatuses);
+
     @Query("""
             select sp from SessionPlayerEntity sp
               join fetch sp.player p
