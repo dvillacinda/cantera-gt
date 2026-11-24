@@ -1,6 +1,7 @@
-# Training sessions API (Sprint 3)
+# Training sessions API (Sprints 3–4)
 
-This API covers training sessions: their lifecycle, roster and attendance, and the coaches taking part.
+This API covers training sessions: their lifecycle, roster and attendance, the coaches taking part, and the
+evaluation events (blocks) run inside a session.
 
 Every route requires a Keycloak bearer token and the `X-Academy-Id` header. All JSON property names use
 `snake_case`. Date-times are ISO-8601 with an offset, and the server stores and returns them in academy local time,
@@ -35,8 +36,8 @@ so the API does not reveal that the resource exists.
 | GET | `/api/v1/training-sessions/{sessionId}` | 200 | 404 |
 | PATCH | `/api/v1/training-sessions/{sessionId}` | 200 | 400 · 403 · 404 · 409 not `PLANNED` |
 | POST | `/api/v1/training-sessions/{sessionId}/start` | 200 | 409 invalid transition or concurrent change |
-| POST | `/api/v1/training-sessions/{sessionId}/complete` | 200 | 409 not `IN_PROGRESS`, or players still `PENDING` (their ids are listed) |
-| POST | `/api/v1/training-sessions/{sessionId}/cancel` | 200 | 409 already `COMPLETED` or `CANCELLED` |
+| POST | `/api/v1/training-sessions/{sessionId}/complete` | 200 | 409 not `IN_PROGRESS`, players still `PENDING` (their ids are listed), or an evaluation event `IN_PROGRESS` |
+| POST | `/api/v1/training-sessions/{sessionId}/cancel` | 200 | 409 already `COMPLETED` or `CANCELLED`, or an evaluation event `IN_PROGRESS` |
 
 **Create body**
 
@@ -64,8 +65,10 @@ PLANNED ──start──► IN_PROGRESS ──complete──► COMPLETED
 ```
 
 - `start` sets `started_at`.
-- `complete` sets `ended_at`, and requires that no player is still `PENDING`.
-- `cancel` sets `ended_at` only if the session had started.
+- `complete` sets `ended_at`, and requires that no player is still `PENDING` and no evaluation event is
+  `IN_PROGRESS`. It cancels the session's `PLANNED` events, which were never run.
+- `cancel` sets `ended_at` only if the session had started. It requires that no evaluation event is `IN_PROGRESS`,
+  and it cancels the session's `PLANNED` events, which have no evidence yet.
 - `COMPLETED` and `CANCELLED` are final. Every other transition returns 409.
 - **Concurrency:** each session carries a `version`. If two requests change the same session at once, one wins and
   the other gets 409.
@@ -139,10 +142,66 @@ by assistants in Sprint 4. It grants nothing yet.
 **Staff entry fields:** `session_staff_id`, `coach_id`, `first_name`, `last_name`, `participation_type` and
 `created_at`.
 
+## Evaluation events (Sprint 4)
+
+An evaluation event is a block inside a session where coaches apply one official template to the convened players.
+The decisions are in [ADR-0004](adr/ADR-0004-evaluation-events.md). Creating and changing events requires the
+**manage** access in the table above; reading requires the read access.
+
+| Method | Path | Success | Main errors |
+|---|---|---|---|
+| POST | `/api/v1/training-sessions/{sessionId}/evaluation-events` | 201 | 400 template not official and `ACTIVE`, or invalid metrics · 403 · 404 · 409 session closed |
+| GET | `/api/v1/training-sessions/{sessionId}/evaluation-events` | 200, in block order | 404 |
+| GET | `/api/v1/evaluation-events/{eventId}` | 200 | 404 |
+| PUT | `/api/v1/evaluation-events/{eventId}/metrics` | 200 | 400 invalid metrics · 409 event not `PLANNED` or session closed |
+| POST | `/api/v1/evaluation-events/{eventId}/start` | 200 | 409 event not `PLANNED`, or session not `IN_PROGRESS` |
+| POST | `/api/v1/evaluation-events/{eventId}/complete` | 200 | 409 event not `IN_PROGRESS` |
+| POST | `/api/v1/evaluation-events/{eventId}/cancel` | 200 | 409 event already closed, or it has evaluations that are not voided |
+
+**Create body**
+
+```json
+{ "template_id": "<official ACTIVE template>", "metric_criterion_ids": ["<uuid>", "<uuid>"] }
+```
+
+- **`block_order`:** assigned by the server as the next number in the session (1, 2, 3…). The client cannot send it.
+  Cancelled events keep their number, and numbers are never reused.
+- **`metric_criterion_ids`:** optional. Without it, the event gets the template's metrics marked
+  `is_active_by_default`. With it, 1 to 3 **scored** metrics of the same template, without duplicates. Penalty
+  components (`is_scored = false`) cannot be activated: they go with their main metric.
+- **Template:** must be official and `ACTIVE`. If a template is retired later, its existing events keep working.
+
+**Changing metrics.** `PUT …/metrics` with `{"metric_criterion_ids": [ … ]}` replaces the whole set. It is allowed
+only while the event is `PLANNED`, so no results can exist yet. To change the template, cancel the event and create
+another one.
+
+**Lifecycle**
+
+```text
+PLANNED ──start──► IN_PROGRESS ──complete──► COMPLETED
+   │                    │
+   └──────cancel────────┴──────────────────► CANCELLED
+```
+
+- `start` sets `started_at`. The session must be `IN_PROGRESS`, and the event needs at least one metric.
+- `complete` sets `ended_at`.
+- `cancel` sets `ended_at` only if the event had started. It returns 409 while the event has evaluations that are not
+  voided: void them first.
+- `COMPLETED` and `CANCELLED` are final.
+
+**Event fields:** `session_event_id`, `session_id`, `template_id`, `template_code`, `template_name`, `block_order`,
+`status`, `started_at`, `ended_at`, `created_at`, `updated_at` and `metrics` (`criterion_id`, `code`, `name`, `unit`,
+`display_order`).
+
 ## Integrity guarantees
 
-Every roster, attendance or staff change takes a row lock on its session (`SELECT … FOR UPDATE`) and increments the
-session's version (`TrainingSessionLock`). This has three effects:
+Every roster, attendance, staff or evaluation event change takes a row lock on its session (`SELECT … FOR UPDATE`)
+and increments the session's version (`TrainingSessionLock`). This has four effects:
 - concurrent changes to the same session run one after another instead of failing;
 - a `complete` that races a roster change returns 409, so a session can never be closed with a `PENDING` player;
-- the single-`LEAD` rule holds under concurrency, even though no database constraint enforces it.
+- the single-`LEAD` rule holds under concurrency, even though no database constraint enforces it;
+- two events created at once get different `block_order` values, and two `start` calls on the same event leave one
+  200 and one 409. Completing or cancelling the session while an event starts also returns 409.
+
+The database adds its own checks (V3 and V9): at most 3 active metrics per event, metrics only from the event's
+template, `block_order` unique per session and greater than zero, and event timestamps that match the status.

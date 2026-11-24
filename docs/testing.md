@@ -175,6 +175,47 @@ and only Keycloak's admin API is mocked. It covers:
 The regression check for `POST /players/{id}/evaluations` is `EvaluationHttpPostgresIntegrationTest`, which runs in
 the same suite.
 
+## Evaluation events (Sprint 4)
+
+### Schema audit and V9 (T4.2)
+
+`SessionEvaluationEventSchemaPostgresIntegrationTest` writes rows with plain JDBC, because it audits the database
+rules on their own. It checks that the database rejects:
+- a duplicate `block_order` in a session, and a `block_order` of zero or below;
+- an unknown event status, and event timestamps that do not match the status;
+- a metric from another template, a non-scored component activated on its own, and a fourth active metric;
+- an evaluation that uses another template than its event's, or a scored result outside the event's metrics;
+- a second evaluation of the same player in an event, unless the first one is `VOIDED`;
+- an inconsistent `VOIDED` state (`evaluations_void_check`);
+- an evaluation whose session is not its event's session (R-2), or whose category is not its session's category.
+
+Two tests named `gap…` document rules that stay in the service by design: the database accepts those rows.
+
+`V9MigrationPostgresIntegrationTest` applies V9 on a separate schema that already holds V1–V8 data. It checks that
+compatible data survives and the constraints are added, and that V9 aborts, without fixing data, in three
+incompatible cases.
+
+### Events and metrics (T4.3)
+
+- `SessionEvaluationEventServiceTest`: the event lifecycle as a parameterized table (status × action, where a
+  rejected transition never flushes). Also covers the server-assigned `block_order`, the default metrics, invalid
+  metric selections (400), official `ACTIVE` templates only, the session state checks, and the order authorize →
+  lock → re-read → validate.
+- `TrainingSessionServiceTest`: a session with an event `IN_PROGRESS` cannot be completed or cancelled (E9), and
+  completing or cancelling a session cancels its `PLANNED` events.
+- `SessionEvaluationEventSecurityHttpTest`: for every route, 401 without a token, 403 for `PLAYER` and for a coach
+  without manage access, 404 for another academy, and 400 without `X-Academy-Id`. Also checks body validation
+  (missing template, `block_order` sent by the client, camelCase, 0 or 4 metrics) and the snake_case response.
+- `SessionEvaluationEventRequestValidationTest`: Bean Validation and snake_case of the two requests.
+- `SessionEvaluationEventPostgresIntegrationTest` runs against `postgres-test`. It checks the entity mapping against
+  V3 and V9 (Hibernate `validate`), consecutive block orders, default metrics, metric replacement under the "at most
+  3" trigger, the lifecycle coupled with the session, the cascade to `PLANNED` events, the 409 on cancelling an event
+  with non-voided evaluations, academy isolation, and constant queries when listing (Hibernate `Statistics`).
+
+The two concurrency tests (two creations at once and two `start` calls on the same event) were validated by
+mutation. With `TrainingSessionLock` removed from the service, both fail: the second creation hits the unique
+`block_order` key, and both `start` calls succeed.
+
 ### Test data factory
 
 `support/TestDataFactory` builds PostgreSQL fixtures: academy, academy category with its season, location, users,
@@ -187,5 +228,5 @@ Run the whole suite against `postgres-test`. It needs no `@Disabled` and skips n
 skips itself only when the three Keycloak variables are missing.
 
 ```powershell
-mvn -o test   # 256 tests at the end of Sprint 3
+mvn -o test   # 256 tests at the end of Sprint 3; 281 after T4.2; 371 after T4.3
 ```

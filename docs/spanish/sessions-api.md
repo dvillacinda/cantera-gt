@@ -1,6 +1,6 @@
-# API de sesiones de entrenamiento (Sprint 3)
+# API de sesiones de entrenamiento (Sprints 3–4)
 
-Esta API cubre las sesiones de entrenamiento: su ciclo de vida, la lista de participantes y la asistencia, y los entrenadores que participan.
+Esta API cubre las sesiones de entrenamiento: su ciclo de vida, la lista de participantes y la asistencia, los entrenadores que participan y los eventos de evaluación (bloques) que se realizan dentro de una sesión.
 
 Todas las rutas requieren un token bearer de Keycloak y el encabezado `X-Academy-Id`. Todos los nombres de propiedades JSON usan `snake_case`. Las fechas y horas usan ISO-8601 con desplazamiento, y el servidor las almacena y devuelve en la hora local de la academia, `America/Guatemala` (UTC−6). Consulte [ADR-0003](adr/ADR-0003-time-zone-and-clock.md).
 
@@ -30,8 +30,8 @@ Si falta `X-Academy-Id` o tiene un formato no válido, se devuelve 400. Un recur
 | GET | `/api/v1/training-sessions/{sessionId}` | 200 | 404 |
 | PATCH | `/api/v1/training-sessions/{sessionId}` | 200 | 400 · 403 · 404 · 409 no está `PLANNED` |
 | POST | `/api/v1/training-sessions/{sessionId}/start` | 200 | 409 transición no válida o cambio concurrente |
-| POST | `/api/v1/training-sessions/{sessionId}/complete` | 200 | 409 no está `IN_PROGRESS` o hay jugadores `PENDING` (se enumeran sus ID) |
-| POST | `/api/v1/training-sessions/{sessionId}/cancel` | 200 | 409 ya está `COMPLETED` o `CANCELLED` |
+| POST | `/api/v1/training-sessions/{sessionId}/complete` | 200 | 409 no está `IN_PROGRESS`, hay jugadores `PENDING` (se enumeran sus ID) o hay un evento de evaluación `IN_PROGRESS` |
+| POST | `/api/v1/training-sessions/{sessionId}/cancel` | 200 | 409 ya está `COMPLETED` o `CANCELLED`, o hay un evento de evaluación `IN_PROGRESS` |
 
 **Cuerpo de creación**
 
@@ -56,8 +56,8 @@ PLANNED ──start──► IN_PROGRESS ──complete──► COMPLETED
 ```
 
 - `start` establece `started_at`.
-- `complete` establece `ended_at` y requiere que ningún jugador siga en `PENDING`.
-- `cancel` establece `ended_at` solo si la sesión había comenzado.
+- `complete` establece `ended_at` y requiere que ningún jugador siga en `PENDING` y que ningún evento de evaluación esté `IN_PROGRESS`. Cancela los eventos `PLANNED` de la sesión, que nunca se realizaron.
+- `cancel` establece `ended_at` solo si la sesión había comenzado. Requiere que ningún evento de evaluación esté `IN_PROGRESS` y cancela los eventos `PLANNED` de la sesión, que todavía no tienen evidencia.
 - `COMPLETED` y `CANCELLED` son estados finales. Cualquier otra transición devuelve 409.
 - **Concurrencia:** cada sesión tiene un `version`. Si dos solicitudes modifican la misma sesión al mismo tiempo, una gana y la otra recibe 409.
 
@@ -120,9 +120,53 @@ El tipo de participación es el rol del entrenador **en esta sesión**. Es indep
 
 **Campos de la entrada de personal:** `session_staff_id`, `coach_id`, `first_name`, `last_name`, `participation_type` y `created_at`.
 
+## Eventos de evaluación (Sprint 4)
+
+Un evento de evaluación es un bloque dentro de una sesión en el que los entrenadores aplican una plantilla oficial a los jugadores convocados. Las decisiones están en [ADR-0004](../adr/ADR-0004-evaluation-events.md) (borrador en inglés). Crear y modificar eventos requiere el acceso de **administración** de la tabla anterior; consultarlos requiere el acceso de consulta.
+
+| Método | Ruta | Respuesta correcta | Errores principales |
+|---|---|---|---|
+| POST | `/api/v1/training-sessions/{sessionId}/evaluation-events` | 201 | 400 plantilla no oficial o no `ACTIVE`, o métricas no válidas · 403 · 404 · 409 sesión cerrada |
+| GET | `/api/v1/training-sessions/{sessionId}/evaluation-events` | 200, en orden de bloque | 404 |
+| GET | `/api/v1/evaluation-events/{eventId}` | 200 | 404 |
+| PUT | `/api/v1/evaluation-events/{eventId}/metrics` | 200 | 400 métricas no válidas · 409 evento no está `PLANNED` o sesión cerrada |
+| POST | `/api/v1/evaluation-events/{eventId}/start` | 200 | 409 evento no está `PLANNED` o sesión no está `IN_PROGRESS` |
+| POST | `/api/v1/evaluation-events/{eventId}/complete` | 200 | 409 evento no está `IN_PROGRESS` |
+| POST | `/api/v1/evaluation-events/{eventId}/cancel` | 200 | 409 evento ya cerrado o con evaluaciones no anuladas |
+
+**Cuerpo de creación**
+
+```json
+{ "template_id": "<plantilla oficial ACTIVE>", "metric_criterion_ids": ["<uuid>", "<uuid>"] }
+```
+
+- **`block_order`:** lo asigna el servidor como el siguiente número de la sesión (1, 2, 3…). El cliente no puede enviarlo. Los eventos cancelados conservan su número y los números nunca se reutilizan.
+- **`metric_criterion_ids`:** opcional. Si no se envía, el evento recibe las métricas de la plantilla marcadas `is_active_by_default`. Si se envía, debe tener entre 1 y 3 métricas **con puntuación** de la misma plantilla, sin duplicados. Los componentes de penalización (`is_scored = false`) no se pueden activar: acompañan a su métrica principal.
+- **Plantilla:** debe ser oficial y estar `ACTIVE`. Si una plantilla se retira después, sus eventos existentes siguen funcionando.
+
+**Cambio de métricas.** `PUT …/metrics` con `{"metric_criterion_ids": [ … ]}` reemplaza el conjunto completo. Solo se permite mientras el evento está `PLANNED`, cuando todavía no puede haber resultados. Para cambiar de plantilla, cancele el evento y cree otro.
+
+**Ciclo de vida**
+
+```text
+PLANNED ──start──► IN_PROGRESS ──complete──► COMPLETED
+   │                    │
+   └──────cancel────────┴──────────────────► CANCELLED
+```
+
+- `start` establece `started_at`. La sesión debe estar `IN_PROGRESS` y el evento necesita al menos una métrica.
+- `complete` establece `ended_at`.
+- `cancel` establece `ended_at` solo si el evento había comenzado. Devuelve 409 mientras el evento tenga evaluaciones no anuladas: primero hay que anularlas.
+- `COMPLETED` y `CANCELLED` son estados finales.
+
+**Campos del evento:** `session_event_id`, `session_id`, `template_id`, `template_code`, `template_name`, `block_order`, `status`, `started_at`, `ended_at`, `created_at`, `updated_at` y `metrics` (`criterion_id`, `code`, `name`, `unit`, `display_order`).
+
 ## Garantías de integridad
 
-Cada cambio en la lista, la asistencia o el personal bloquea la fila de la sesión (`SELECT … FOR UPDATE`) e incrementa su versión (`TrainingSessionLock`). Esto tiene tres efectos:
+Cada cambio en la lista, la asistencia, el personal o los eventos de evaluación bloquea la fila de la sesión (`SELECT … FOR UPDATE`) e incrementa su versión (`TrainingSessionLock`). Esto tiene cuatro efectos:
 - los cambios concurrentes a la misma sesión se ejecutan uno tras otro en lugar de fallar;
 - una operación `complete` que coincida con un cambio a la lista devuelve 409, por lo que una sesión nunca se puede cerrar si tiene un jugador `PENDING`;
-- la regla de un solo `LEAD` se mantiene con concurrencia, aunque ninguna restricción de la base de datos la imponga.
+- la regla de un solo `LEAD` se mantiene con concurrencia, aunque ninguna restricción de la base de datos la imponga;
+- dos eventos creados a la vez reciben valores distintos de `block_order`, y dos llamadas `start` al mismo evento dejan un 200 y un 409. Completar o cancelar la sesión mientras un evento inicia también devuelve 409.
+
+La base de datos agrega sus propias verificaciones (V3 y V9): como máximo 3 métricas activas por evento, solo métricas de la plantilla del evento, `block_order` único por sesión y mayor que cero, y marcas de tiempo del evento coherentes con su estado.

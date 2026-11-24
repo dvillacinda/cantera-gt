@@ -2,7 +2,8 @@
 
 - **Status:** Draft. Decisions approved on 2026-11-20 (DP-2, "APRUEBO DEFAULTS"). The ADR is published as Accepted
   in T4.7, once the implementation and its tests exist.
-- **Implementation:** pending (T4.3 events and metrics, T4.4 evaluation link, T4.5 voiding, T4.6 rotation)
+- **Implementation:** T4.2 (V9) and T4.3 (events and metrics) done; pending T4.4 evaluation link, T4.5 voiding,
+  T4.6 rotation
 
 ## Context
 
@@ -43,7 +44,19 @@ inside a session where coaches record evidence for the convened players. Facts v
      immutable.
    - Completing or cancelling a session that has `IN_PROGRESS` events returns 409.
    - Cancelling an event that has non-voided evaluations returns 409: they must be voided first.
-   - Assumption to confirm in T4.3: cancelling a session cancels its `PLANNED` events, which have no evidence.
+   - Cancelling a session cancels its `PLANNED` events, which have no evidence (confirmed in T4.3-D5, 2026-11-23).
+     Completing a session does the same (T4.3 POST-GATE, option B, 2026-11-23), so a closed session never keeps
+     `PLANNED` events.
+   - T4.3 decisions (approved 2026-11-23, "APRUEBO DEFAULTS"):
+     - Events live in the `training_session` package, as children of the session aggregate. This avoids a package
+       cycle, because the session lifecycle must see its events.
+     - The server assigns `block_order` as the session's maximum plus one, under the session lock. Numbers are never
+       reused, and reordering is out of scope.
+     - Without `metric_criterion_ids`, the template's `is_active_by_default` scored metrics are loaded. With it, 1 to
+       3 scored metrics of the same template are accepted.
+     - `PUT …/metrics` replaces the whole set, only while the event is `PLANNED`. There is no PATCH: to change the
+       template, the event is cancelled and another one is created.
+     - Creating, changing metrics, starting, completing and cancelling events require the session manage access.
 3. **Evaluation ↔ event link (DP-2.3, options B + C).**
    - Validity: session `IN_PROGRESS`, event `IN_PROGRESS`, player convened with attendance `PRESENT` or `LATE`, same
      template as the event.
@@ -97,3 +110,4 @@ inside a session where coaches record evidence for the convened players. Facts v
 | DP-2.4 | Product defines D-05 before S6. |
 | DP-2.5 | T4.7 shows noticeable contention: per-event lock or a `version` column (V9). |
 | DP-2.6 | Smaller per-task PRs are needed. |
+| T4.3 | The pilot head coach needs session staff to start or complete blocks: use `requireDataEntryAccess` for those two transitions. Coaches need to reorder blocks: accept an optional `block_order`. |
