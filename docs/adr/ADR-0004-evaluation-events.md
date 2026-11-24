@@ -2,7 +2,11 @@
 
 - **Status:** Draft. Decisions approved on 2026-11-20 (DP-2, "APRUEBO DEFAULTS"). The ADR is published as Accepted
   in T4.7, once the implementation and its tests exist.
+<<<<<<< HEAD
 - **Implementation:** T4.2 (V9), T4.3 (events and metrics) and T4.4 (evaluation link) done; pending T4.5 voiding,
+=======
+- **Implementation:** T4.2 (V9) and T4.3 (events and metrics) done; pending T4.4 evaluation link, T4.5 voiding,
+>>>>>>> 09747250a5bdbda4753b33943a7a99afa3192534
   T4.6 rotation
 
 ## Context
