@@ -194,6 +194,7 @@ public class TrainingSessionService {
         requireNoEventInProgress(sessionId, "Cannot complete a session with evaluation events IN_PROGRESS");
         session.setStatus(TrainingSessionStatus.COMPLETED);
         session.setEndedAt(LocalDateTime.now(clock));
+        cancelPlannedEvents(sessionId);
         return mapper.toResponse(saveVersioned(session));
     }
 
@@ -208,12 +209,19 @@ public class TrainingSessionService {
             session.setEndedAt(LocalDateTime.now(clock));
         }
         session.setStatus(TrainingSessionStatus.CANCELLED);
-        // ADR-0004 DP-2.2 (confirmed in T4.3-D5): PLANNED events have no evidence and are cancelled with the session.
-        // They are flushed together with the session's version check, so a concurrent event change (which bumps the
-        // session version under TrainingSessionLock) makes this cancellation fail with 409 as a whole.
+        cancelPlannedEvents(sessionId);
+        return mapper.toResponse(saveVersioned(session));
+    }
+
+    /**
+     * PLANNED events have no evidence and are cancelled when their session closes, whether it is cancelled
+     * (T4.3-D5) or completed (T4.3 POST-GATE, option B). They are flushed together with the session's version check,
+     * so a concurrent event change (which bumps the session version under TrainingSessionLock) makes the whole
+     * transition fail with 409.
+     */
+    private void cancelPlannedEvents(UUID sessionId) {
         eventRepository.findAllByTrainingSession_SessionIdAndStatus(sessionId, SessionEvaluationEventStatus.PLANNED)
                 .forEach(event -> event.setStatus(SessionEvaluationEventStatus.CANCELLED));
-        return mapper.toResponse(saveVersioned(session));
     }
 
     private void requireNoEventInProgress(UUID sessionId, String message) {

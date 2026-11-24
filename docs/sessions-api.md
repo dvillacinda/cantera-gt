@@ -66,7 +66,7 @@ PLANNED ──start──► IN_PROGRESS ──complete──► COMPLETED
 
 - `start` sets `started_at`.
 - `complete` sets `ended_at`, and requires that no player is still `PENDING` and no evaluation event is
-  `IN_PROGRESS`.
+  `IN_PROGRESS`. It cancels the session's `PLANNED` events, which were never run.
 - `cancel` sets `ended_at` only if the session had started. It requires that no evaluation event is `IN_PROGRESS`,
   and it cancels the session's `PLANNED` events, which have no evidence yet.
 - `COMPLETED` and `CANCELLED` are final. Every other transition returns 409.

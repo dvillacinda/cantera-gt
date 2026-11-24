@@ -202,7 +202,7 @@ incompatible cases.
   metric selections (400), official `ACTIVE` templates only, the session state checks, and the order authorize →
   lock → re-read → validate.
 - `TrainingSessionServiceTest`: a session with an event `IN_PROGRESS` cannot be completed or cancelled (E9), and
-  cancelling a session cancels its `PLANNED` events.
+  completing or cancelling a session cancels its `PLANNED` events.
 - `SessionEvaluationEventSecurityHttpTest`: for every route, 401 without a token, 403 for `PLAYER` and for a coach
   without manage access, 404 for another academy, and 400 without `X-Academy-Id`. Also checks body validation
   (missing template, `block_order` sent by the client, camelCase, 0 or 4 metrics) and the snake_case response.
@@ -228,5 +228,5 @@ Run the whole suite against `postgres-test`. It needs no `@Disabled` and skips n
 skips itself only when the three Keycloak variables are missing.
 
 ```powershell
-mvn -o test   # 256 tests at the end of Sprint 3; 281 after T4.2; 370 after T4.3
+mvn -o test   # 256 tests at the end of Sprint 3; 281 after T4.2; 371 after T4.3
 ```

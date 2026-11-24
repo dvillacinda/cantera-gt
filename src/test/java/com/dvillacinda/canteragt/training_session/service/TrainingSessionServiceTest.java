@@ -375,22 +375,30 @@ class TrainingSessionServiceTest {
         verify(trainingSessionRepository, never()).saveAndFlush(any());
     }
 
-    /** T4.3-D5: cancelling a session cancels its PLANNED events (they have no evidence). */
-    @Test
-    void cancellingASessionCancelsItsPlannedEvents() {
-        TrainingSessionEntity session = session(TrainingSessionStatus.PLANNED);
+    /** T4.3-D5 and POST-GATE B: closing a session (cancel or complete) cancels its PLANNED events. */
+    @ParameterizedTest
+    @CsvSource({ "CANCEL, CANCELLED", "COMPLETE, COMPLETED" })
+    void closingASessionCancelsItsPlannedEvents(String action, TrainingSessionStatus expected) {
+        TrainingSessionEntity session = session(TrainingSessionStatus.IN_PROGRESS);
+        session.setStartedAt(LocalDateTime.of(2026, 11, 17, 9, 0));
         when(trainingSessionRepository.findBySessionIdAndAcademyCategory_Academy_AcademyId(SESSION_ID, ACADEMY_ID))
                 .thenReturn(Optional.of(session));
         when(trainingSessionRepository.saveAndFlush(session)).thenReturn(session);
+        lenient().when(sessionPlayerRepository.findPlayerIdsBySessionAndAttendanceStatus(
+                SESSION_ID, CATEGORY_ID, AttendanceStatus.PENDING)).thenReturn(List.of());
         SessionEvaluationEventEntity planned = SessionEvaluationEventEntity.builder()
                 .status(SessionEvaluationEventStatus.PLANNED).build();
         when(eventRepository.findAllByTrainingSession_SessionIdAndStatus(
                 SESSION_ID, SessionEvaluationEventStatus.PLANNED)).thenReturn(List.of(planned));
 
-        service.cancel(SESSION_ID, ACADEMY_ID, authentication);
+        if ("CANCEL".equals(action)) {
+            service.cancel(SESSION_ID, ACADEMY_ID, authentication);
+        } else {
+            service.complete(SESSION_ID, ACADEMY_ID, authentication);
+        }
 
         assertEquals(SessionEvaluationEventStatus.CANCELLED, planned.getStatus());
-        assertEquals(TrainingSessionStatus.CANCELLED, session.getStatus());
+        assertEquals(expected, session.getStatus());
     }
 
     /**

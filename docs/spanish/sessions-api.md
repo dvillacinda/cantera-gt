@@ -56,7 +56,7 @@ PLANNED ──start──► IN_PROGRESS ──complete──► COMPLETED
 ```
 
 - `start` establece `started_at`.
-- `complete` establece `ended_at` y requiere que ningún jugador siga en `PENDING` y que ningún evento de evaluación esté `IN_PROGRESS`.
+- `complete` establece `ended_at` y requiere que ningún jugador siga en `PENDING` y que ningún evento de evaluación esté `IN_PROGRESS`. Cancela los eventos `PLANNED` de la sesión, que nunca se realizaron.
 - `cancel` establece `ended_at` solo si la sesión había comenzado. Requiere que ningún evento de evaluación esté `IN_PROGRESS` y cancela los eventos `PLANNED` de la sesión, que todavía no tienen evidencia.
 - `COMPLETED` y `CANCELLED` son estados finales. Cualquier otra transición devuelve 409.
 - **Concurrencia:** cada sesión tiene un `version`. Si dos solicitudes modifican la misma sesión al mismo tiempo, una gana y la otra recibe 409.
